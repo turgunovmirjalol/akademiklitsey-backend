@@ -1,6 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -121,6 +122,7 @@ class TeacherListView(BaseStructureView):
     
     queryset = Teacher.objects.all()
     filterset_fields = ['department', 'category', 'is_active']
+    parser_classes = [MultiPartParser, FormParser]
     
     def get(self, request):
         """O'qituvchilar ro'yxati - pagination va filter bilan"""
@@ -164,6 +166,7 @@ class TeacherDetailView(BaseStructureView):
         return TeacherWriteSerializer
     
     queryset = Teacher.objects.all()
+    parser_classes = [MultiPartParser, FormParser]
     
     def get_object(self):
         return get_object_or_404(Teacher, slug=self.kwargs['slug'])
@@ -221,6 +224,7 @@ class ManagementListView(BaseStructureView):
     
     queryset = Management.objects.all()
     pagination_class = None  # Rahbariyat ko'p bo'lmaydi, pagination kerak emas
+    parser_classes = [MultiPartParser, FormParser]
     
     def get(self, request):
         """Rahbariyat ro'yxati"""
@@ -247,6 +251,7 @@ class ManagementDetailView(BaseStructureView):
         return ManagementWriteSerializer
     
     queryset = Management.objects.all()
+    parser_classes = [MultiPartParser, FormParser]
     
     def get_object(self):
         return get_object_or_404(Management, pk=self.kwargs['pk'])

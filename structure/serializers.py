@@ -78,13 +78,14 @@ class TeacherListSerializer(serializers.ModelSerializer):
     """O'qituvchilar ro'yxati uchun serializer"""
     department = serializers.SerializerMethodField()
     category_display = serializers.CharField(source='get_category_display', read_only=True)
+    photo_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Teacher
         fields = [
             'id', 'full_name', 'slug', 'position', 'academic_degree', 
             'academic_rank', 'category', 'category_display', 'experience_years',
-            'subject', 'department', 'photo', 'email', 'sort_order'
+            'subject', 'department', 'photo', 'photo_url', 'email', 'sort_order'
         ]
     
     def get_department(self, obj):
@@ -95,6 +96,15 @@ class TeacherListSerializer(serializers.ModelSerializer):
                 'name': obj.department.name,
                 'slug': obj.department.slug
             }
+        return None
+    
+    def get_photo_url(self, obj):
+        """Rasm URL ni olish"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
         return None
 
 
@@ -115,6 +125,9 @@ class TeacherWriteSerializer(serializers.ModelSerializer):
             'category', 'experience_years', 'subject', 'department', 
             'photo', 'bio', 'achievements', 'email', 'is_active', 'sort_order'
         ]
+        extra_kwargs = {
+            'photo': {'required': False}
+        }
     
     def validate_slug(self, value):
         """Slugning noyobligini tekshirish"""
@@ -140,15 +153,24 @@ class TeacherWriteSerializer(serializers.ModelSerializer):
 
 class ManagementSerializer(serializers.ModelSerializer):
     """Rahbariyat uchun serializer"""
+    photo_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Management
         fields = [
             'id', 'full_name', 'position', 'academic_degree', 
-            'phone', 'email', 'reception_hours', 'photo', 'bio', 
+            'phone', 'email', 'reception_hours', 'photo', 'photo_url', 'bio', 
             'sort_order', 'is_active'
         ]
-        read_only_fields = ['id']
+    
+    def get_photo_url(self, obj):
+        """Rasm URL ni olish"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
 
 
 class ManagementWriteSerializer(serializers.ModelSerializer):
@@ -161,3 +183,6 @@ class ManagementWriteSerializer(serializers.ModelSerializer):
             'phone', 'email', 'reception_hours', 'photo', 'bio', 
             'sort_order', 'is_active'
         ]
+        extra_kwargs = {
+            'photo': {'required': False}
+        }

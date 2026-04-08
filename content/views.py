@@ -249,6 +249,7 @@ class NewsImageView(generics.GenericAPIView):
     """Yangilik rasmlari uchun view - faqat adminlar"""
     permission_classes = [IsAdminUser]
     serializer_class = NewsImageSerializer
+    queryset = NewsImage.objects.all()
     
     def get_object(self):
         return get_object_or_404(NewsImage, pk=self.kwargs['pk'], news__slug=self.kwargs['slug'])

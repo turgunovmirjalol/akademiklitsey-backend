@@ -89,7 +89,7 @@ class Teacher(models.Model):
         related_name='teachers',
         verbose_name="Kafedra"
     )
-    photo = models.CharField(max_length=500, null=True, blank=True, verbose_name="Rasm URL")
+    photo = models.ImageField(upload_to='teacher_photos/', null=True, blank=True, verbose_name="Rasm")
     bio = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol")
     achievements = models.TextField(null=True, blank=True, verbose_name="Yutuqlar")
     email = models.EmailField(max_length=150, null=True, blank=True, verbose_name="Email")
@@ -110,6 +110,12 @@ class Teacher(models.Model):
 
     def __str__(self):
         return self.full_name
+    @property
+    def photo_url(self):
+        """Rasm URL ni olish"""
+        if self.photo:
+            return self.photo.url
+        return None
 
 
 class Management(models.Model):
@@ -127,7 +133,7 @@ class Management(models.Model):
         null=True, blank=True,
         verbose_name="Qabul vaqti"
     )
-    photo = models.CharField(max_length=500, null=True, blank=True, verbose_name="Rasm URL")
+    photo = models.ImageField(upload_to='management_photos/', null=True, blank=True, verbose_name="Rasm")
     bio = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol")
     sort_order = models.IntegerField(default=0, verbose_name="Tartib")
     is_active = models.BooleanField(default=True, verbose_name="Faolmi")
@@ -143,3 +149,10 @@ class Management(models.Model):
 
     def __str__(self):
         return f"{self.full_name} - {self.position}"
+    
+    @property
+    def photo_url(self):
+        """Rasm URL ni olish"""
+        if self.photo:
+            return self.photo.url
+        return None
