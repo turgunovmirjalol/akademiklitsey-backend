@@ -10,7 +10,7 @@ from django.conf.urls.static import static
 schema_view = get_schema_view(
     openapi.Info(
         title="Academik Litsey API",
-        default_version='v1',
+        default_version='v2',
         description="Test description",
         terms_of_service="https://www.google.com/policies/terms/",
         contact=openapi.Contact(email="contact@snippets.local"),
@@ -32,9 +32,9 @@ urlpatterns = [
 ]
 
 urlpatterns += [
-    path('token/', token_obtain_pair),
+    path('', include('accounts.urls', namespace='accounts')),
+    path('', include('settings_app.urls', namespace='settings_app')),
     path('token/refresh/', token_refresh),
-
 ]
 
 if settings.DEBUG:

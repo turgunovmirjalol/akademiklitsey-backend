@@ -2,9 +2,7 @@ from rest_framework.permissions import BasePermission
 
 
 class IsAdminUser(BasePermission):
-    """
-    Faqat admin rolega ega foydalanuvchilarga ruxsat berish
-    """
+
     def has_permission(self, request, view):
         return (
             request.user and 
@@ -14,9 +12,7 @@ class IsAdminUser(BasePermission):
 
 
 class IsAdminOrReadOnly(BasePermission):
-    """
-    Adminlar uchun to'liq ruxsat, boshqalar uchun faqat o'qish
-    """
+
     def has_permission(self, request, view):
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True

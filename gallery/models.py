@@ -3,11 +3,24 @@ from django.utils.text import slugify
 
 
 class GalleryAlbum(models.Model):
-    """Galereya albomlari"""
-    title = models.CharField(max_length=300, verbose_name="Album nomi")
-    slug = models.SlugField(max_length=350, unique=True, verbose_name="Slug")
-    description = models.TextField(null=True, blank=True, verbose_name="Tavsif")
-    cover_image = models.ImageField(upload_to='gallery_covers/', null=True, blank=True, verbose_name="Muqova rasmi")
+    """Galereya albomlari — title va description ko'p tilli."""
+
+    # Tarjima maydonlari
+    title_uz = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ)")
+    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ Kirill)")
+    title_ru = models.CharField(max_length=300, blank=True, verbose_name="Nomi (RU)")
+    title_en = models.CharField(max_length=300, blank=True, verbose_name="Nomi (EN)")
+
+    description_uz = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ)")
+    description_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ Kirill)")
+    description_ru = models.TextField(null=True, blank=True, verbose_name="Tavsif (RU)")
+    description_en = models.TextField(null=True, blank=True, verbose_name="Tavsif (EN)")
+
+    # Umumiy maydonlar
+    slug = models.SlugField(max_length=350, unique=True, blank=True, verbose_name="Slug")
+    cover_image = models.ImageField(
+        upload_to='gallery_covers/', null=True, blank=True, verbose_name="Muqova rasmi"
+    )
     event_date = models.DateField(null=True, blank=True, verbose_name="Tadbir sanasi")
     photos_count = models.PositiveIntegerField(default=0, verbose_name="Rasmlar soni")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
@@ -27,32 +40,35 @@ class GalleryAlbum(models.Model):
         ]
 
     def __str__(self):
-        return self.title
-    
-    @property
-    def cover_image_url(self):
-        """Muqova rasm URL ni olish"""
-        if self.cover_image:
-            return self.cover_image.url
-        return None
-    
+        return self.title_uz or self.title_ru or self.title_en or f"Album #{self.pk}"
+
     def save(self, *args, **kwargs):
-        """Slug avtomatik yaratish"""
         if not self.slug:
-            self.slug = slugify(self.title)
+            base = slugify(self.title_uz or self.title_ru or self.title_en or 'album') or 'album'
+            slug = base
+            counter = 1
+            while GalleryAlbum.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
+
+    def update_photos_count(self):
+        """Rasmlar sonini qayta hisoblash."""
+        self.photos_count = self.photos.count()
+        GalleryAlbum.objects.filter(pk=self.pk).update(photos_count=self.photos_count)
 
 
 class GalleryPhoto(models.Model):
-    """Galereya rasmlari"""
+    """Galereya rasmlari."""
     album = models.ForeignKey(
-        GalleryAlbum,
-        on_delete=models.CASCADE,
-        related_name='photos',
-        verbose_name="Album"
+        GalleryAlbum, on_delete=models.CASCADE,
+        related_name='photos', verbose_name="Album"
     )
     image = models.ImageField(upload_to='gallery_photos/', verbose_name="Asosiy rasm")
-    thumbnail = models.ImageField(upload_to='gallery_thumbnails/', verbose_name="Kichik rasm")
+    thumbnail = models.ImageField(
+        upload_to='gallery_thumbnails/', null=True, blank=True, verbose_name="Kichik rasm"
+    )
     caption = models.CharField(max_length=500, null=True, blank=True, verbose_name="Izoh")
     sort_order = models.IntegerField(default=0, verbose_name="Tartib")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yuklangan vaqt")
@@ -68,39 +84,30 @@ class GalleryPhoto(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.album.title} - rasm #{self.pk}"
-    
-    @property
-    def image_url(self):
-        """Asosiy rasm URL ni olish"""
-        if self.image:
-            return self.image.url
-        return None
-    
-    @property
-    def thumbnail_url(self):
-        """Kichik rasm URL ni olish"""
-        if self.thumbnail:
-            return self.thumbnail.url
-        return None
-    
+        return f"{self.album} - #{self.pk}"
+
     def save(self, *args, **kwargs):
-        """Rasm yuklanganda albomning photos_count ni yangilash"""
         is_new = self.pk is None
         super().save(*args, **kwargs)
-        
         if is_new:
-            # Yangi rasm qo'shilganda albomning rasmlar sonini oshirish
-            self.album.photos_count = self.album.photos.count()
-            self.album.save()
+            self.album.update_photos_count()
+
+    def delete(self, *args, **kwargs):
+        album = self.album
+        super().delete(*args, **kwargs)
+        album.update_photos_count()
 
 
 class UsefulLink(models.Model):
-    """Foydali havolalar"""
+    """Foydali havolalar."""
     name = models.CharField(max_length=200, verbose_name="Nomi")
     url = models.URLField(max_length=500, verbose_name="Havola")
-    logo = models.ImageField(upload_to='useful_links_logos/', null=True, blank=True, verbose_name="Logo rasm")
-    description = models.CharField(max_length=300, null=True, blank=True, verbose_name="Qisqa tavsif")
+    logo = models.ImageField(
+        upload_to='useful_links_logos/', null=True, blank=True, verbose_name="Logo"
+    )
+    description = models.CharField(
+        max_length=300, null=True, blank=True, verbose_name="Qisqa tavsif"
+    )
     sort_order = models.IntegerField(default=0, verbose_name="Tartib")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqt")
@@ -117,10 +124,3 @@ class UsefulLink(models.Model):
 
     def __str__(self):
         return self.name
-    
-    @property
-    def logo_url(self):
-        """Logo URL ni olish"""
-        if self.logo:
-            return self.logo.url
-        return None

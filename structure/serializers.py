@@ -1,188 +1,294 @@
 from rest_framework import serializers
-from django.utils.text import slugify
 from .models import Department, Teacher, Management
 
+LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
 
-class DepartmentSerializer(serializers.ModelSerializer):
-    """Kafedralar uchun serializer"""
+
+def build_translations(obj, fields):
+    result = {}
+    for lang in LANGS:
+        data = {}
+        for field in fields:
+            val = getattr(obj, f"{field}_{lang}", None) or ''
+            data[field] = val
+        if any(data.values()):
+            result[lang] = data
+    return result
+
+
+def apply_lang_filter(data, lang):
+    if not lang or lang not in LANGS:
+        return data
+    def _filter(item):
+        if isinstance(item, dict) and 'translations' in item:
+            t = item.get('translations') or {}
+            item = dict(item)
+            item['translations'] = {lang: t.get(lang, {})} if t else {}
+        return item
+    if isinstance(data, list):
+        return [_filter(i) for i in data]
+    return _filter(data)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Teacher
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TeacherSerializer(serializers.Serializer):
+    """Read serializer — ro'yxat uchun."""
+    id = serializers.IntegerField(read_only=True)
+    full_name = serializers.CharField()
+    slug = serializers.SlugField(read_only=True)
+    translations = serializers.SerializerMethodField()
+    academic_degree = serializers.CharField(allow_null=True, allow_blank=True)
+    academic_rank = serializers.CharField(allow_null=True, allow_blank=True)
+    category = serializers.CharField()
+    category_display = serializers.SerializerMethodField()
+    experience_years = serializers.IntegerField(allow_null=True)
+    department = serializers.PrimaryKeyRelatedField(read_only=True, allow_null=True)
+    department_name = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+    email = serializers.EmailField(allow_null=True, allow_blank=True)
+    sort_order = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_translations(self, obj):
+        return build_translations(obj, ['position', 'subject', 'bio', 'achievements'])
+
+    def get_category_display(self, obj):
+        return obj.get_category_display()
+
+    def get_department_name(self, obj):
+        if obj.department:
+            return obj.department.name_uz or obj.department.name_ru or obj.department.name_en or ''
+        return None
+
+    def get_photo(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
+        return None
+
+
+class TeacherWriteSerializer(serializers.Serializer):
+    """
+    Write serializer. Har bir til maydoni alohida flat field.
+    photo — multipart/form-data orqali yuboriladi.
+    Kamida bitta tilda position_* to'ldirilishi shart.
+    """
+    full_name = serializers.CharField(max_length=200, help_text="To'liq ismi (majburiy)")
+
+    # Tarjima maydonlari
+    position_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ)")
+    position_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ Kirill)")
+    position_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (RU)")
+    position_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (EN)")
+
+    subject_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (UZ)")
+    subject_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (UZ Kirill)")
+    subject_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (RU)")
+    subject_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (EN)")
+
+    bio_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ)")
+    bio_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ Kirill)")
+    bio_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (RU)")
+    bio_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (EN)")
+
+    achievements_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (UZ)")
+    achievements_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (UZ Kirill)")
+    achievements_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (RU)")
+    achievements_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (EN)")
+
+    # Umumiy maydonlar
+    academic_degree = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    academic_rank = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    category = serializers.ChoiceField(choices=Teacher.Category.choices, default=Teacher.Category.NONE)
+    experience_years = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    department = serializers.IntegerField(required=False, allow_null=True, help_text="Kafedra ID si")
+    photo = serializers.ImageField(required=False, allow_null=True, help_text="Rasm (multipart/form-data)")
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    is_active = serializers.BooleanField(default=True)
+    sort_order = serializers.IntegerField(default=0)
+
+    def validate_department(self, value):
+        if value is None:
+            return None
+        try:
+            return Department.objects.get(pk=value)
+        except Department.DoesNotExist:
+            raise serializers.ValidationError(f"ID={value} bo'lgan kafedra topilmadi.")
+
+    def validate(self, data):
+        positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+        if not any(positions):
+            raise serializers.ValidationError(
+                "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+            )
+        return data
+
+    def create(self, validated_data):
+        return Teacher.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Department
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DepartmentSerializer(serializers.Serializer):
+    """Read serializer — ro'yxat uchun."""
+    id = serializers.IntegerField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
+    translations = serializers.SerializerMethodField()
     head_teacher = serializers.SerializerMethodField()
-    teachers_count = serializers.ReadOnlyField()
-    
-    class Meta:
-        model = Department
-        fields = [
-            'id', 'name', 'slug', 'description', 'head_teacher', 
-            'subjects', 'room_number', 'phone', 'email', 
-            'teachers_count', 'sort_order', 'is_active', 'created_at'
-        ]
-        read_only_fields = ['id', 'teachers_count', 'created_at']
-    
+    subjects = serializers.ListField(child=serializers.CharField(), allow_null=True)
+    room_number = serializers.CharField(allow_null=True, allow_blank=True)
+    phone = serializers.CharField(allow_null=True, allow_blank=True)
+    email = serializers.EmailField(allow_null=True, allow_blank=True)
+    teachers_count = serializers.IntegerField(read_only=True)
+    sort_order = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_translations(self, obj):
+        return build_translations(obj, ['name', 'description'])
+
     def get_head_teacher(self, obj):
-        """Kafedra mudiri ma'lumotlari"""
         if obj.head_teacher:
             return {
                 'id': obj.head_teacher.id,
                 'full_name': obj.head_teacher.full_name,
-                'position': obj.head_teacher.position
+                'position': obj.head_teacher.position_uz or obj.head_teacher.position_ru or '',
             }
         return None
 
 
 class DepartmentDetailSerializer(DepartmentSerializer):
-    """Kafedra detallari uchun serializer (o'qituvchilar ro'yxati bilan)"""
+    """Read serializer — detail uchun (o'qituvchilar bilan)."""
     teachers = serializers.SerializerMethodField()
-    
-    class Meta(DepartmentSerializer.Meta):
-        fields = DepartmentSerializer.Meta.fields + ['teachers']
-    
+
     def get_teachers(self, obj):
-        """Kafedraga tegishli o'qituvchilar ro'yxati"""
         teachers = obj.teachers.filter(is_active=True).order_by('sort_order', 'full_name')
-        return TeacherListSerializer(teachers, many=True).data
+        return TeacherSerializer(teachers, many=True, context=self.context).data
 
 
-class DepartmentWriteSerializer(serializers.ModelSerializer):
-    """Kafedra yaratish/tahrirlash uchun serializer"""
-    
-    class Meta:
-        model = Department
-        fields = [
-            'name', 'slug', 'description', 'head_teacher', 
-            'subjects', 'room_number', 'phone', 'email', 
-            'sort_order', 'is_active'
-        ]
-    
-    def validate_slug(self, value):
-        """Slugning noyobligini tekshirish"""
-        if self.instance and self.instance.slug != value:
-            if Department.objects.filter(slug=value).exists():
-                raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        elif not self.instance and Department.objects.filter(slug=value).exists():
-            raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        return value
-    
+class DepartmentWriteSerializer(serializers.Serializer):
+    """Write serializer. Kamida bitta tilda name_* to'ldirilishi shart."""
+    name_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (UZ)")
+    name_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (UZ Kirill)")
+    name_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (RU)")
+    name_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (EN)")
+
+    description_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (UZ)")
+    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (UZ Kirill)")
+    description_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (RU)")
+    description_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (EN)")
+
+    head_teacher = serializers.IntegerField(required=False, allow_null=True, help_text="Kafedra mudiri ID si")
+    subjects = serializers.ListField(child=serializers.CharField(), required=False, allow_null=True, help_text="Fanlar ro'yxati")
+    room_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    sort_order = serializers.IntegerField(default=0)
+    is_active = serializers.BooleanField(default=True)
+
+    def validate_head_teacher(self, value):
+        if value is None:
+            return None
+        try:
+            return Teacher.objects.get(pk=value, is_active=True)
+        except Teacher.DoesNotExist:
+            raise serializers.ValidationError(f"ID={value} bo'lgan faol o'qituvchi topilmadi.")
+
+    def validate(self, data):
+        names = [data.get(f'name_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+        if not any(names):
+            raise serializers.ValidationError(
+                "Kamida bitta tilda kafedra nomi kiritilishi shart (name_uz, name_ru yoki name_en)."
+            )
+        return data
+
     def create(self, validated_data):
-        """Kafedra yaratishda slug avtomatik yaratish"""
-        if 'slug' not in validated_data or not validated_data['slug']:
-            validated_data['slug'] = slugify(validated_data['name'])
-        return super().create(validated_data)
-    
+        return Department.objects.create(**validated_data)
+
     def update(self, instance, validated_data):
-        """Kafedrani yangilash - slug bo'sh bo'lsa name dan yaratish"""
-        if 'slug' in validated_data and (not validated_data['slug'] or validated_data['slug'].strip() == ''):
-            validated_data['slug'] = slugify(validated_data.get('name', instance.name))
-        return super().update(instance, validated_data)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
-class TeacherListSerializer(serializers.ModelSerializer):
-    """O'qituvchilar ro'yxati uchun serializer"""
-    department = serializers.SerializerMethodField()
-    category_display = serializers.CharField(source='get_category_display', read_only=True)
-    photo_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Teacher
-        fields = [
-            'id', 'full_name', 'slug', 'position', 'academic_degree', 
-            'academic_rank', 'category', 'category_display', 'experience_years',
-            'subject', 'department', 'photo', 'photo_url', 'email', 'sort_order'
-        ]
-    
-    def get_department(self, obj):
-        """O'qituvchi kafedrasi ma'lumotlari"""
-        if obj.department:
-            return {
-                'id': obj.department.id,
-                'name': obj.department.name,
-                'slug': obj.department.slug
-            }
-        return None
-    
-    def get_photo_url(self, obj):
-        """Rasm URL ni olish"""
+# ─────────────────────────────────────────────────────────────────────────────
+# Management
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ManagementSerializer(serializers.Serializer):
+    """Read serializer."""
+    id = serializers.IntegerField(read_only=True)
+    full_name = serializers.CharField()
+    translations = serializers.SerializerMethodField()
+    academic_degree = serializers.CharField(allow_null=True, allow_blank=True)
+    phone = serializers.CharField(allow_null=True, allow_blank=True)
+    email = serializers.EmailField(allow_null=True, allow_blank=True)
+    photo = serializers.SerializerMethodField()
+    sort_order = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+
+    def get_translations(self, obj):
+        return build_translations(obj, ['position', 'bio', 'reception_hours'])
+
+    def get_photo(self, obj):
         if obj.photo:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.photo.url)
-            return obj.photo.url
+            return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
         return None
 
 
-class TeacherDetailSerializer(TeacherListSerializer):
-    """O'qituvchi detallari uchun serializer"""
-    
-    class Meta(TeacherListSerializer.Meta):
-        fields = TeacherListSerializer.Meta.fields + ['bio', 'achievements', 'created_at']
+class ManagementWriteSerializer(serializers.Serializer):
+    """Write serializer. Kamida bitta tilda position_* to'ldirilishi shart."""
+    full_name = serializers.CharField(max_length=200, help_text="To'liq ismi (majburiy)")
 
+    position_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ)")
+    position_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ Kirill)")
+    position_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (RU)")
+    position_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (EN)")
 
-class TeacherWriteSerializer(serializers.ModelSerializer):
-    """O'qituvchi yaratish/tahrirlash uchun serializer"""
-    
-    class Meta:
-        model = Teacher
-        fields = [
-            'full_name', 'slug', 'position', 'academic_degree', 'academic_rank',
-            'category', 'experience_years', 'subject', 'department', 
-            'photo', 'bio', 'achievements', 'email', 'is_active', 'sort_order'
-        ]
-        extra_kwargs = {
-            'photo': {'required': False}
-        }
-    
-    def validate_slug(self, value):
-        """Slugning noyobligini tekshirish"""
-        if self.instance and self.instance.slug != value:
-            if Teacher.objects.filter(slug=value).exists():
-                raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        elif not self.instance and Teacher.objects.filter(slug=value).exists():
-            raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        return value
-    
+    bio_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ)")
+    bio_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ Kirill)")
+    bio_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (RU)")
+    bio_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (EN)")
+
+    reception_hours_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (UZ)")
+    reception_hours_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (UZ Kirill)")
+    reception_hours_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (RU)")
+    reception_hours_en = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (EN)")
+
+    academic_degree = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    photo = serializers.ImageField(required=False, allow_null=True, help_text="Rasm (multipart/form-data)")
+    sort_order = serializers.IntegerField(default=0)
+    is_active = serializers.BooleanField(default=True)
+
+    def validate(self, data):
+        positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+        if not any(positions):
+            raise serializers.ValidationError(
+                "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+            )
+        return data
+
     def create(self, validated_data):
-        """O'qituvchi yaratishda slug avtomatik yaratish"""
-        if 'slug' not in validated_data or not validated_data['slug']:
-            validated_data['slug'] = slugify(validated_data['full_name'])
-        return super().create(validated_data)
-    
+        return Management.objects.create(**validated_data)
+
     def update(self, instance, validated_data):
-        """O'qituvchini yangilash - slug bo'sh bo'lsa full_name dan yaratish"""
-        if 'slug' in validated_data and (not validated_data['slug'] or validated_data['slug'].strip() == ''):
-            validated_data['slug'] = slugify(validated_data.get('full_name', instance.full_name))
-        return super().update(instance, validated_data)
-
-
-class ManagementSerializer(serializers.ModelSerializer):
-    """Rahbariyat uchun serializer"""
-    photo_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Management
-        fields = [
-            'id', 'full_name', 'position', 'academic_degree', 
-            'phone', 'email', 'reception_hours', 'photo', 'photo_url', 'bio', 
-            'sort_order', 'is_active'
-        ]
-    
-    def get_photo_url(self, obj):
-        """Rasm URL ni olish"""
-        if obj.photo:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.photo.url)
-            return obj.photo.url
-        return None
-
-
-class ManagementWriteSerializer(serializers.ModelSerializer):
-    """Rahbariyat yaratish/tahrirlash uchun serializer"""
-    
-    class Meta:
-        model = Management
-        fields = [
-            'full_name', 'position', 'academic_degree', 
-            'phone', 'email', 'reception_hours', 'photo', 'bio', 
-            'sort_order', 'is_active'
-        ]
-        extra_kwargs = {
-            'photo': {'required': False}
-        }
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

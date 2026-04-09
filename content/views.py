@@ -1,371 +1,433 @@
-from rest_framework import generics, status
+from rest_framework import generics, filters, status
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Q, F
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from accounts.permissions import IsAdminUser
-from .models import News, Announcement, NewsImage, AnnouncementImage
+
+from .models import News, Announcement
 from .serializers import (
-    NewsListSerializer, NewsDetailSerializer, NewsWriteSerializer,
-    AnnouncementListSerializer, AnnouncementDetailSerializer, AnnouncementWriteSerializer,
-    NewsImageSerializer, AnnouncementImageSerializer, NewsImageUploadSerializer, AnnouncementImageUploadSerializer
+    NewsSerializer,
+    NewsWriteSerializer,
+    AnnouncementSerializer,
+    AnnouncementWriteSerializer,
+    apply_lang_filter,
 )
-from .pagination import CustomPagination
+
+# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+
+LANG_PARAM = openapi.Parameter(
+    'lang', openapi.IN_QUERY,
+    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    type=openapi.TYPE_STRING,
+    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    required=False,
+)
+
+ACTIVE_ONLY_PARAM = openapi.Parameter(
+    'active_only', openapi.IN_QUERY,
+    description="true — muddati o'tmagan e'lonlar (faqat Announcement uchun)",
+    type=openapi.TYPE_BOOLEAN,
+    required=False,
+)
 
 
-class BaseContentView(generics.GenericAPIView):
-    """Content uchun asosiy view - umumiy funksiyalar"""
-    pagination_class = CustomPagination
-    filter_backends = [DjangoFilterBackend]
-    
-    def get_permissions(self):
-        if self.request.method in ['GET']:
-            return [AllowAny()]
-        return [IsAdminUser()]
-    
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Faqat published statusdagi kontentni ko'rsatish (GET so'rovlari uchun)
-        if self.request.method == 'GET':
-            queryset = queryset.filter(status='published')
-        
-        # Search funksiyasi
-        search = self.request.query_params.get('search', None)
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | 
-                Q(short_description__icontains=search)
-            )
-        
-        return queryset
+# ─── Pagination ──────────────────────────────────────────────────────────────
+
+class ContentPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
-class NewsListView(BaseContentView):
-    """Yangiliklar ro'yxati - GET, POST"""
-    
-    def get_serializer_class(self):
-        if self.request.method == 'GET':
-            return NewsListSerializer
-        return NewsWriteSerializer
-    
-    queryset = News.objects.all()
+# ─────────────────────────────────────────────────────────────────────────────
+# News
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NewsListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    pagination_class = ContentPagination
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'is_featured']
-    
-    def get(self, request):
-        """Yangiliklar ro'yxati - pagination bilan"""
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        
+    search_fields = [
+        'title_uz', 'title_ru', 'title_en',
+        'short_description_uz', 'short_description_ru',
+    ]
+    ordering_fields = ['created_at', 'published_at', 'views_count']
+    ordering = ['-published_at', '-created_at']
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return News.objects.none()
+        return News.objects.select_related('created_by').all()
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return NewsSerializer
+        return NewsWriteSerializer if self.request.method == 'POST' else NewsSerializer
+
+    @swagger_auto_schema(
+        operation_summary="Yangiliklar ro'yxati",
+        operation_description=(
+            "Barcha yangiliklar. Filterlar:\n"
+            "- `?status=draft|published|archived`\n"
+            "- `?is_featured=true|false`\n"
+            "- `?search=...` — sarlavha/tavsif bo'yicha qidirish\n"
+            "- `?ordering=published_at|-published_at|views_count`\n"
+            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+        ),
+        manual_parameters=[LANG_PARAM],
+        responses={200: NewsSerializer(many=True)},
+        tags=['Content - News'],
+    )
+    def get(self, request, *args, **kwargs):
+        lang = request.query_params.get('lang')
+        qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({'success': True, 'data': serializer.data})
-    
-    def post(self, request):
-        """Yangi yangilik qo'shish - faqat admin"""
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            news = serializer.save()
-            # Response uchun detail serializer ishlatish
-            response_serializer = NewsDetailSerializer(news)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            data = NewsSerializer(page, many=True, context={'request': request}).data
+            return self.get_paginated_response(apply_lang_filter(list(data), lang))
+        data = NewsSerializer(qs, many=True, context={'request': request}).data
+        return Response(apply_lang_filter(list(data), lang))
 
-
-class NewsFeaturedView(BaseContentView):
-    """Bosh sahifa uchun featured yangiliklar"""
-    
-    def get_serializer_class(self):
-        return NewsListSerializer
-    
-    queryset = News.objects.filter(is_featured=True, status='published')
-    pagination_class = None  # Limit qo'llanilgani uchun pagination kerak emas
-    
-    def get(self, request):
-        """Featured yangiliklar (limit 3)"""
-        news = self.get_queryset()[:3]
-        serializer = self.get_serializer(news, many=True)
-        return Response({'success': True, 'data': serializer.data})
-
-
-class NewsDetailView(BaseContentView):
-    """Bitta yangilik - GET, PUT, DELETE"""
-    
-    def get_serializer_class(self):
-        if self.request.method == 'GET':
-            return NewsDetailSerializer
-        return NewsWriteSerializer
-    
-    queryset = News.objects.all()
-    
-    def get_object(self):
-        """Slug orqali yangilikni olish"""
-        return get_object_or_404(News, slug=self.kwargs['slug'])
-    
-    def get(self, request, slug):
-        """Bitta yangilikni ko'rish"""
-        news = self.get_object()
-        # Faqat published yangilikni ko'rish mumkin
-        if news.status != 'published':
-            return Response(
-                {'error': 'Bu yangilik hali nashr qilinmagan'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = self.get_serializer(news)
-        return Response({'success': True, 'data': serializer.data})
-    
-    def put(self, request, slug):
-        """Yangilikni yangilash - faqat admin"""
-        news = self.get_object()
-        serializer = self.get_serializer(news, data=request.data, context={'request': request})
-        if serializer.is_valid():
-            updated_news = serializer.save()
-            response_serializer = NewsDetailSerializer(updated_news)
-            return Response(response_serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, slug):
-        """Yangilikni o'chirish - faqat admin"""
-        news = self.get_object()
-        news.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class NewsIncrementViewsView(generics.GenericAPIView):
-    permission_classes = [AllowAny]
-    queryset = News.objects.all()
-
-    @swagger_auto_schema(auto_schema=None)
-    def patch(self, request, slug):
-        news = get_object_or_404(News, slug=slug)
-        news.increment_views()
-
-        return Response({
-            'success': True,
-            'views_count': news.views_count
-        })
-
-
-class AnnouncementListView(BaseContentView):
-    """E'lonlar ro'yxati - GET, POST"""
-    
-    def get_serializer_class(self):
-        if self.request.method == 'GET':
-            return AnnouncementListSerializer
-        return AnnouncementWriteSerializer
-    
-    queryset = Announcement.objects.all()
-    filterset_fields = ['status', 'is_important']
-    
-    def get(self, request):
-        """E'lonlar ro'yxati - pagination bilan"""
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({'success': True, 'data': serializer.data})
-    
-    def post(self, request):
-        """Yangi e'lon qo'shish - faqat admin"""
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            announcement = serializer.save()
-            response_serializer = AnnouncementDetailSerializer(announcement)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AnnouncementFeaturedView(BaseContentView):
-    """Bosh sahifa uchun featured e'lonlar"""
-    
-    def get_serializer_class(self):
-        return AnnouncementListSerializer
-    
-    queryset = Announcement.objects.filter(status='published').order_by('-is_important', '-published_at')
-    pagination_class = None
-    
-    def get(self, request):
-        """Featured e'lonlar (limit 3)"""
-        announcements = self.get_queryset()[:3]
-        serializer = self.get_serializer(announcements, many=True)
-        return Response({'success': True, 'data': serializer.data})
-
-
-class AnnouncementDetailView(BaseContentView):
-    """Bitta e'lon - GET, PUT, DELETE"""
-    
-    def get_serializer_class(self):
-        if self.request.method == 'GET':
-            return AnnouncementDetailSerializer
-        return AnnouncementWriteSerializer
-    
-    queryset = Announcement.objects.all()
-    
-    def get_object(self):
-        return get_object_or_404(Announcement, slug=self.kwargs['slug'])
-    
-    def get(self, request, slug):
-        """Bitta e'lonni ko'rish"""
-        announcement = self.get_object()
-        if announcement.status != 'published':
-            return Response(
-                {'error': 'Bu e\'lon hali nashr qilinmagan'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = self.get_serializer(announcement)
-        return Response({'success': True, 'data': serializer.data})
-    
-    def put(self, request, slug):
-        """E'lonni yangilash - faqat admin"""
-        announcement = self.get_object()
-        serializer = self.get_serializer(announcement, data=request.data, context={'request': request})
-        if serializer.is_valid():
-            updated_announcement = serializer.save()
-            response_serializer = AnnouncementDetailSerializer(updated_announcement)
-            return Response(response_serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, slug):
-        """E'lonni o'chirish - faqat admin"""
-        announcement = self.get_object()
-        announcement.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class NewsImageView(generics.GenericAPIView):
-    """Yangilik rasmlari uchun view - faqat adminlar"""
-    permission_classes = [IsAdminUser]
-    serializer_class = NewsImageSerializer
-    queryset = NewsImage.objects.all()
-    
-    def get_object(self):
-        return get_object_or_404(NewsImage, pk=self.kwargs['pk'], news__slug=self.kwargs['slug'])
-    
-    def delete(self, request, slug, pk):
-        """Rasmani o'chirish - faqat admin"""
-        image = self.get_object()
-        image.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class AnnouncementImageView(generics.GenericAPIView):
-    """E'lon rasmlari uchun view - faqat adminlar"""
-
-    permission_classes = [IsAdminUser]
-    serializer_class = AnnouncementImageSerializer
-    queryset = AnnouncementImage.objects.all()  # ← SHU QATORNI QO‘SHING
-
-    def get_object(self):
-        return get_object_or_404(
-            AnnouncementImage,
-            pk=self.kwargs['pk'],
-            announcement__slug=self.kwargs['slug']
+    @swagger_auto_schema(
+        operation_summary="Yangi yangilik yaratish",
+        operation_description=(
+            "Autentifikatsiya talab qilinadi. **`multipart/form-data`** orqali yuboriladi.\n\n"
+            "Kamida bitta tilda `title_*` to'ldirilishi shart."
+        ),
+        manual_parameters=[
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
+            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ Kirill)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
+            openapi.Parameter('content_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (EN)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
+            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+        ],
+        consumes=['multipart/form-data'],
+        responses={
+            201: NewsSerializer,
+            400: openapi.Response(description="Validatsiya xatosi"),
+            401: openapi.Response(description="Autentifikatsiya talab qilinadi"),
+        },
+        tags=['Content - News'],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = NewsWriteSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        news = serializer.save()
+        return Response(
+            NewsSerializer(news, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
         )
 
-    @swagger_auto_schema(auto_schema=None)  # Swaggerda ko'rinmasligi uchun
-    def delete(self, request, slug, pk):
-        """Rasmani o'chirish - faqat admin"""
-        image = self.get_object()
-        image.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
+class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    lookup_field = 'slug'
 
-class NewsImageUploadView(generics.GenericAPIView):
-    """Yangilikka rasm yuklash - faqat adminlar"""
-    permission_classes = [IsAdminUser]
-    parser_classes = [MultiPartParser, FormParser]
-    serializer_class = NewsImageUploadSerializer
-    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return News.objects.none()
+        return News.objects.select_related('created_by').all()
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return NewsSerializer
+        if self.request.method in ('PUT', 'PATCH'):
+            return NewsWriteSerializer
+        return NewsSerializer
+
     @swagger_auto_schema(
-        operation_description="Yangilikka rasm yuklash",
-        manual_parameters=[
-            openapi.Parameter(
-                'image',
-                openapi.IN_FORM,
-                description="Rasm fayli",
-                type=openapi.TYPE_FILE,
-                required=True
-            ),
-            openapi.Parameter(
-                'caption',
-                openapi.IN_FORM,
-                description="Rasm izohi",
-                type=openapi.TYPE_STRING,
-                required=False
-            ),
-            openapi.Parameter(
-                'sort_order',
-                openapi.IN_FORM,
-                description="Tartib raqami",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            ),
-        ],
-        responses={201: NewsImageSerializer}
+        operation_summary="Yangilik detali",
+        operation_description="Bitta yangilik. Ko'rishlar soni avtomatik oshadi. ?lang= bilan til filtri.",
+        manual_parameters=[LANG_PARAM],
+        responses={200: NewsSerializer, 404: openapi.Response(description="Topilmadi")},
+        tags=['Content - News'],
     )
-    def post(self, request, slug):
-        """Yangilikka yangi rasm yuklash"""
-        news = get_object_or_404(News, slug=slug)
-        
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(news=news)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.increment_views()
+        lang = request.query_params.get('lang')
+        data = NewsSerializer(obj, context={'request': request}).data
+        return Response(apply_lang_filter(data, lang))
 
-
-class AnnouncementImageUploadView(generics.GenericAPIView):
-    """E'longa rasm yuklash - faqat adminlar"""
-    permission_classes = [IsAdminUser]
-    parser_classes = [MultiPartParser, FormParser]
-    serializer_class = AnnouncementImageUploadSerializer
-    
     @swagger_auto_schema(
-        operation_description="E'longa rasm yuklash",
+        operation_summary="Yangilikni to'liq yangilash",
+        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. **`multipart/form-data`** orqali yuboriladi.",
         manual_parameters=[
-            openapi.Parameter(
-                'image',
-                openapi.IN_FORM,
-                description="Rasm fayli",
-                type=openapi.TYPE_FILE,
-                required=True
-            ),
-            openapi.Parameter(
-                'caption',
-                openapi.IN_FORM,
-                description="Rasm izohi",
-                type=openapi.TYPE_STRING,
-                required=False
-            ),
-            openapi.Parameter(
-                'sort_order',
-                openapi.IN_FORM,
-                description="Tartib raqami",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            ),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
+            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ Kirill)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
+            openapi.Parameter('content_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (EN)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived'], default='draft'),
+            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
         ],
-        responses={201: AnnouncementImageSerializer}
+        consumes=['multipart/form-data'],
+        responses={200: NewsSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        tags=['Content - News'],
     )
-    def post(self, request, slug):
-        """E'longa yangi rasm yuklash"""
-        announcement = get_object_or_404(Announcement, slug=slug)
-        
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(announcement=announcement)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = NewsWriteSerializer(obj, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save()
+        return Response(NewsSerializer(obj, context={'request': request}).data)
+
+    @swagger_auto_schema(
+        operation_summary="Yangilikni qisman yangilash",
+        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        manual_parameters=[
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived']),
+            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+        ],
+        consumes=['multipart/form-data'],
+        responses={200: NewsSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        tags=['Content - News'],
+    )
+    def patch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = NewsWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save()
+        return Response(NewsSerializer(obj, context={'request': request}).data)
+
+    @swagger_auto_schema(
+        operation_summary="Yangilikni o'chirish",
+        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        tags=['Content - News'],
+    )
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        data = {
+            'id': obj.id,
+            'slug': obj.slug,
+            'title': obj.title_uz or obj.title_ru or obj.title_en or '',
+            'detail': "Yangilik muvaffaqiyatli o'chirildi.",
+        }
+        obj.delete()
+        return Response(data, status=status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Announcement
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AnnouncementListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    pagination_class = ContentPagination
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'is_important']
+    search_fields = [
+        'title_uz', 'title_ru', 'title_en',
+        'short_description_uz', 'short_description_ru',
+    ]
+    ordering_fields = ['created_at', 'published_at', 'expires_at', 'views_count']
+    ordering = ['-published_at', '-created_at']
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Announcement.objects.none()
+        qs = Announcement.objects.select_related('created_by').all()
+        if self.request.query_params.get('active_only', '').lower() == 'true':
+            qs = qs.filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+            )
+        return qs
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return AnnouncementSerializer
+        return AnnouncementWriteSerializer if self.request.method == 'POST' else AnnouncementSerializer
+
+    @swagger_auto_schema(
+        operation_summary="E'lonlar ro'yxati",
+        operation_description=(
+            "Barcha e'lonlar. Filterlar:\n"
+            "- `?status=draft|published|archived`\n"
+            "- `?is_important=true|false`\n"
+            "- `?active_only=true` — muddati o'tmagan e'lonlar\n"
+            "- `?search=...` — sarlavha/tavsif bo'yicha qidirish\n"
+            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+        ),
+        manual_parameters=[LANG_PARAM, ACTIVE_ONLY_PARAM],
+        responses={200: AnnouncementSerializer(many=True)},
+        tags=["Content - Announcements"],
+    )
+    def get(self, request, *args, **kwargs):
+        lang = request.query_params.get('lang')
+        qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            data = AnnouncementSerializer(page, many=True, context={'request': request}).data
+            return self.get_paginated_response(apply_lang_filter(list(data), lang))
+        data = AnnouncementSerializer(qs, many=True, context={'request': request}).data
+        return Response(apply_lang_filter(list(data), lang))
+
+    @swagger_auto_schema(
+        operation_summary="Yangi e'lon yaratish",
+        operation_description=(
+            "Autentifikatsiya talab qilinadi. **`multipart/form-data`** orqali yuboriladi.\n\n"
+            "Kamida bitta tilda `title_*` to'ldirilishi shart."
+        ),
+        manual_parameters=[
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
+            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ Kirill)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
+            openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+        ],
+        consumes=['multipart/form-data'],
+        responses={
+            201: AnnouncementSerializer,
+            400: openapi.Response(description="Validatsiya xatosi"),
+            401: openapi.Response(description="Autentifikatsiya talab qilinadi"),
+        },
+        tags=["Content - Announcements"],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = AnnouncementWriteSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        ann = serializer.save()
+        return Response(
+            AnnouncementSerializer(ann, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    lookup_field = 'slug'
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Announcement.objects.none()
+        return Announcement.objects.select_related('created_by').all()
+
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return AnnouncementSerializer
+        if self.request.method in ('PUT', 'PATCH'):
+            return AnnouncementWriteSerializer
+        return AnnouncementSerializer
+
+    @swagger_auto_schema(
+        operation_summary="E'lon detali",
+        operation_description="Bitta e'lon. Ko'rishlar soni avtomatik oshadi. ?lang= bilan til filtri.",
+        manual_parameters=[LANG_PARAM],
+        responses={200: AnnouncementSerializer, 404: openapi.Response(description="Topilmadi")},
+        tags=["Content - Announcements"],
+    )
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        Announcement.objects.filter(pk=obj.pk).update(views_count=F('views_count') + 1)
+        lang = request.query_params.get('lang')
+        data = AnnouncementSerializer(obj, context={'request': request}).data
+        return Response(apply_lang_filter(data, lang))
+
+    @swagger_auto_schema(
+        operation_summary="E'lonni to'liq yangilash",
+        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. **`multipart/form-data`** orqali yuboriladi.",
+        manual_parameters=[
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived'], default='draft'),
+            openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+        ],
+        consumes=['multipart/form-data'],
+        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        tags=["Content - Announcements"],
+    )
+    def put(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = AnnouncementWriteSerializer(obj, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save()
+        return Response(AnnouncementSerializer(obj, context={'request': request}).data)
+
+    @swagger_auto_schema(
+        operation_summary="E'lonni qisman yangilash",
+        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        manual_parameters=[
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived']),
+            openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
+        ],
+        consumes=['multipart/form-data'],
+        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        tags=["Content - Announcements"],
+    )
+    def patch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = AnnouncementWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save()
+        return Response(AnnouncementSerializer(obj, context={'request': request}).data)
+
+    @swagger_auto_schema(
+        operation_summary="E'lonni o'chirish",
+        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        tags=["Content - Announcements"],
+    )
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        data = {
+            'id': obj.id,
+            'slug': obj.slug,
+            'title': obj.title_uz or obj.title_ru or obj.title_en or '',
+            'detail': "E'lon muvaffaqiyatli o'chirildi.",
+        }
+        obj.delete()
+        return Response(data, status=status.HTTP_200_OK)

@@ -14,7 +14,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_USER)
 
     def __str__(self):
-        return self.email
+        return f"{self.username} ({self.email})"
 
     def is_admin_role(self):
         return self.role == self.ROLE_ADMIN

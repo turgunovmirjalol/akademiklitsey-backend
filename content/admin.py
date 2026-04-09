@@ -1,122 +1,177 @@
 from django.contrib import admin
-from .models import News, Announcement, NewsImage, AnnouncementImage
+from django.utils.html import format_html, mark_safe
+from django.utils import timezone
+from .models import News, Announcement
 
 
-class NewsImageInline(admin.TabularInline):
-    """News uchun inline image rasm"""
-    model = NewsImage
-    extra = 0
-    fields = ['image', 'caption', 'sort_order']
-    ordering = ['sort_order']
+class BaseContentAdmin(admin.ModelAdmin):
+    """News va Announcement uchun umumiy admin."""
+    readonly_fields = ['views_count', 'created_at', 'slug']
+    ordering = ['-published_at', '-created_at']
 
+    def get_readonly_fields(self, request, obj=None):
+        base = ['views_count', 'created_at']
+        if obj:
+            base.append('slug')
+        return base
 
-class AnnouncementImageInline(admin.TabularInline):
-    """Announcement uchun inline image rasm"""
-    model = AnnouncementImage
-    extra = 0
-    fields = ['image', 'caption', 'sort_order']
-    ordering = ['sort_order']
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def views_badge(self, obj):
+        return format_html(
+            '<span style="background:#007bff;color:#fff;padding:2px 8px;'
+            'border-radius:4px;font-size:11px">👁 {}</span>',
+            obj.views_count,
+        )
+    views_badge.short_description = "Ko'rishlar"
+
+    def status_badge(self, obj):
+        colors = {
+            'published': '#28a745',
+            'draft': '#6c757d',
+            'archived': '#dc3545',
+        }
+        labels = {
+            'published': 'Nashr',
+            'draft': 'Qoralama',
+            'archived': 'Arxiv',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        label = labels.get(obj.status, obj.status)
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;'
+            'border-radius:4px;font-size:11px">{}</span>',
+            color, label,
+        )
+    status_badge.short_description = "Holat"
 
 
 @admin.register(News)
-class NewsAdmin(admin.ModelAdmin):
-    list_display = ['title', 'status', 'is_featured', 'views_count', 'published_at', 'created_by']
+class NewsAdmin(BaseContentAdmin):
+    list_display = [
+        'title_badge', 'status_badge', 'is_featured',
+        'views_badge', 'published_at', 'created_by',
+    ]
     list_filter = ['status', 'is_featured', 'published_at', 'created_at']
-    search_fields = ['title', 'short_description']
-    list_editable = ['status', 'is_featured']
-    ordering = ['-published_at', '-created_at']
-    readonly_fields = ['views_count', 'created_at', 'updated_at', 'slug']
-    inlines = [NewsImageInline]
-    
+    search_fields = ['title_uz', 'title_ru', 'title_en', 'short_description_uz']
+    list_editable = ['is_featured']
+    readonly_fields = ['views_count', 'created_at', 'updated_at', 'slug', 'views_badge', 'status_badge']
+
     fieldsets = (
-        ('Asosiy ma\'lumotlar', {
-            'fields': ('title', 'slug', 'short_description', 'content')
+        ("O'zbek tili (Lotin)", {
+            'fields': ('title_uz', 'short_description_uz', 'content_uz'),
+            'description': "Asosiy til — kamida shu til to'ldirilishi shart.",
         }),
-        ('Media', {
-            'fields': ('thumbnail',)
+        ("O'zbek tili (Kirill)", {
+            'fields': ('title_uz_cyrl', 'short_description_uz_cyrl', 'content_uz_cyrl'),
+            'classes': ('collapse',),
         }),
-        ('Nashr sozlamalari', {
-            'fields': ('status', 'is_featured', 'published_at')
+        ("Rus tili", {
+            'fields': ('title_ru', 'short_description_ru', 'content_ru'),
+            'classes': ('collapse',),
         }),
-        ('Tizim ma\'lumotlari', {
-            'fields': ('views_count', 'created_by', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
+        ("Ingliz tili", {
+            'fields': ('title_en', 'short_description_en', 'content_en'),
+            'classes': ('collapse',),
+        }),
+        ("Media", {
+            'fields': ('image',),
+        }),
+        ("Nashr sozlamalari", {
+            'fields': ('slug', 'status', 'is_featured', 'published_at'),
+        }),
+        ("Statistika va tizim", {
+            'fields': ('views_badge', 'created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
         }),
     )
-    
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['title_uz'].required = True
+        return form
+
+    def title_badge(self, obj):
+        title = obj.title_uz or obj.title_ru or obj.title_en or '—'
+        return format_html('<strong>{}</strong>', title[:60] + ('...' if len(title) > 60 else ''))
+    title_badge.short_description = "Sarlavha"
+
     def get_readonly_fields(self, request, obj=None):
-        """Yangi obyekt yaratilayotganda ba'zi fieldlarni editable qilish"""
-        if obj is None:
-            return ['views_count', 'created_at', 'updated_at']
-        return ['views_count', 'created_at', 'updated_at', 'slug']
-    
-    def save_model(self, request, obj, form, change):
-        """created_by ni avtomatik to'ldirish"""
-        if not change:  # Yangi obyekt yaratilayotganda
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
+        base = ['views_count', 'views_badge', 'status_badge', 'created_at', 'updated_at']
+        if obj:
+            base.append('slug')
+        return base
 
 
 @admin.register(Announcement)
-class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ['title', 'status', 'is_important', 'expires_at', 'published_at', 'created_by']
+class AnnouncementAdmin(BaseContentAdmin):
+    list_display = [
+        'title_badge', 'status_badge', 'is_important',
+        'views_badge', 'expires_badge', 'published_at', 'created_by',
+    ]
     list_filter = ['status', 'is_important', 'published_at', 'expires_at']
-    search_fields = ['title', 'short_description']
-    list_editable = ['status', 'is_important']
-    ordering = ['-published_at', '-created_at']
-    readonly_fields = ['views_count', 'created_at', 'slug']
-    inlines = [AnnouncementImageInline]
-    
+    search_fields = ['title_uz', 'title_ru', 'title_en', 'short_description_uz']
+    list_editable = ['is_important']
+    readonly_fields = ['views_count', 'created_at', 'slug', 'views_badge', 'status_badge', 'expires_badge']
+
     fieldsets = (
-        ('Asosiy ma\'lumotlar', {
-            'fields': ('title', 'slug', 'short_description', 'content')
+        ("O'zbek tili (Lotin)", {
+            'fields': ('title_uz', 'short_description_uz', 'content_uz'),
+            'description': "Asosiy til — kamida shu til to'ldirilishi shart.",
         }),
-        ('Media', {
-            'fields': ('thumbnail',)
+        ("O'zbek tili (Kirill)", {
+            'fields': ('title_uz_cyrl', 'short_description_uz_cyrl', 'content_uz_cyrl'),
+            'classes': ('collapse',),
         }),
-        ('Nashr sozlamalari', {
-            'fields': ('status', 'is_important', 'published_at', 'expires_at')
+        ("Rus tili", {
+            'fields': ('title_ru', 'short_description_ru', 'content_ru'),
+            'classes': ('collapse',),
         }),
-        ('Tizim ma\'lumotlari', {
-            'fields': ('views_count', 'created_by', 'created_at'),
-            'classes': ('collapse',)
+        ("Ingliz tili", {
+            'fields': ('title_en', 'short_description_en', 'content_en'),
+            'classes': ('collapse',),
+        }),
+        ("Media", {
+            'fields': ('image',),
+        }),
+        ("Nashr sozlamalari", {
+            'fields': ('slug', 'status', 'is_important', 'published_at', 'expires_at'),
+        }),
+        ("Statistika va tizim", {
+            'fields': ('views_badge', 'expires_badge', 'created_by', 'created_at'),
+            'classes': ('collapse',),
         }),
     )
-    
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['title_uz'].required = True
+        return form
+
+    def title_badge(self, obj):
+        title = obj.title_uz or obj.title_ru or obj.title_en or '—'
+        return format_html('<strong>{}</strong>', title[:60] + ('...' if len(title) > 60 else ''))
+    title_badge.short_description = "Sarlavha"
+
+    def expires_badge(self, obj):
+        if not obj.expires_at:
+            return mark_safe('<span style="color:#6c757d">Muddatsiz</span>')
+        if obj.is_expired:
+            return format_html(
+                '<span style="color:#dc3545;font-weight:bold">Muddati tugagan: {}</span>',
+                obj.expires_at.strftime('%d.%m.%Y'),
+            )
+        return format_html(
+            '<span style="color:#28a745">{}</span>',
+            obj.expires_at.strftime('%d.%m.%Y %H:%M'),
+        )
+    expires_badge.short_description = "Muddat"
+
     def get_readonly_fields(self, request, obj=None):
-        """Yangi obyekt yaratilayotganda ba'zi fieldlarni editable qilish"""
-        if obj is None:
-            return ['views_count', 'created_at']
-        return ['views_count', 'created_at', 'slug']
-    
-    def save_model(self, request, obj, form, change):
-        """created_by ni avtomatik to'ldirish"""
-        if not change:  # Yangi obyekt yaratilayotganda
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
-
-
-@admin.register(NewsImage)
-class NewsImageAdmin(admin.ModelAdmin):
-    list_display = ['news', 'caption', 'sort_order', 'created_at']
-    list_filter = ['created_at']
-    search_fields = ['news__title', 'caption']
-    list_editable = ['sort_order']
-    ordering = ['news', 'sort_order', 'created_at']
-    readonly_fields = ['created_at']
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('news')
-
-
-@admin.register(AnnouncementImage)
-class AnnouncementImageAdmin(admin.ModelAdmin):
-    list_display = ['announcement', 'caption', 'sort_order', 'created_at']
-    list_filter = ['created_at']
-    search_fields = ['announcement__title', 'caption']
-    list_editable = ['sort_order']
-    ordering = ['announcement', 'sort_order', 'created_at']
-    readonly_fields = ['created_at']
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('announcement')
+        base = ['views_count', 'views_badge', 'status_badge', 'expires_badge', 'created_at']
+        if obj:
+            base.append('slug')
+        return base

@@ -6,16 +6,15 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    """User modeli uchun admin paneli"""
     
-    list_display = ('email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser')
-    search_fields = ('email', 'first_name', 'last_name')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('-date_joined',)
     
     fieldsets = (
         (_('Asosiy ma\'lumotlar'), {
-            'fields': ('email', 'password')
+            'fields': ('username', 'email', 'password')
         }),
         (_('Shaxsiy ma\'lumotlar'), {
             'fields': ('first_name', 'last_name')
@@ -32,7 +31,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2', 'role'),
+            'fields': ('username', 'email', 'password1', 'password2', 'role'),
         }),
     )
     

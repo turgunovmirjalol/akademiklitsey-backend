@@ -1,135 +1,260 @@
 from rest_framework import serializers
 from .models import GalleryAlbum, GalleryPhoto, UsefulLink
 
+LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
 
-class GalleryPhotoSerializer(serializers.ModelSerializer):
-    """Galereya rasmlari uchun serializer"""
-    image_url = serializers.SerializerMethodField()
-    thumbnail_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = GalleryPhoto
-        fields = ['id', 'image_url', 'thumbnail_url', 'caption', 'sort_order', 'created_at']
-        read_only_fields = ['id', 'created_at']
-    
-    def get_image_url(self, obj):
-        """Asosiy rasm URL ni olish"""
+
+def build_translations(obj, fields):
+    result = {}
+    for lang in LANGS:
+        data = {}
+        for field in fields:
+            val = getattr(obj, f"{field}_{lang}", None) or ''
+            data[field] = val
+        if any(data.values()):
+            result[lang] = data
+    return result
+
+
+def apply_lang_filter(data, lang):
+    if not lang or lang not in LANGS:
+        return data
+    def _filter(item):
+        if isinstance(item, dict) and 'translations' in item:
+            t = item.get('translations') or {}
+            item = dict(item)
+            item['translations'] = {lang: t.get(lang, {})} if t else {}
+        return item
+    if isinstance(data, list):
+        return [_filter(i) for i in data]
+    return _filter(data)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GalleryPhoto
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GalleryPhotoSerializer(serializers.Serializer):
+    """Read serializer — albom ichidagi rasmlar."""
+    id = serializers.IntegerField(read_only=True)
+    image = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+    caption = serializers.CharField(allow_null=True, allow_blank=True)
+    sort_order = serializers.IntegerField()
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_image(self, obj):
         if obj.image:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
         return None
-    
-    def get_thumbnail_url(self, obj):
-        """Kichik rasm URL ni olish"""
+
+    def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.thumbnail.url)
-            return obj.thumbnail.url
+            return request.build_absolute_uri(obj.thumbnail.url) if request else obj.thumbnail.url
         return None
 
 
-class GalleryAlbumListSerializer(serializers.ModelSerializer):
-    """Galereya albomlari ro'yxati uchun serializer"""
-    cover_image_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = GalleryAlbum
-        fields = [
-            'id', 'title', 'slug', 'description', 'cover_image', 'cover_image_url',
-            'event_date', 'photos_count', 'is_active', 'sort_order', 'created_at'
-        ]
-        read_only_fields = ['id', 'photos_count', 'created_at']
-    
-    def get_cover_image_url(self, obj):
-        """Muqova rasm URL ni olish"""
+class GalleryPhotoUploadSerializer(serializers.Serializer):
+    """
+    Albomga rasm yuklash uchun.
+    image — majburiy, thumbnail — ixtiyoriy.
+    multipart/form-data orqali yuboriladi.
+    """
+    image = serializers.ImageField(
+        help_text="Asosiy rasm (majburiy). JPEG, PNG, WEBP."
+    )
+    thumbnail = serializers.ImageField(
+        required=False, allow_null=True,
+        help_text="Kichik preview rasm (ixtiyoriy). Yo'q bo'lsa image ishlatiladi."
+    )
+    caption = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, allow_null=True,
+        help_text="Rasm izohi (ixtiyoriy)"
+    )
+    sort_order = serializers.IntegerField(
+        default=0,
+        help_text="Tartib raqami (ixtiyoriy, avtomatik belgilanadi)"
+    )
+
+    def create(self, validated_data):
+        return GalleryPhoto.objects.create(**validated_data)
+
+
+class GalleryPhotoBulkUploadSerializer(serializers.Serializer):
+    """
+    Bir vaqtda bir nechta rasm yuklash.
+    images[] — bir nechta fayl.
+    """
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        help_text="Bir nechta rasm fayllari (images[])"
+    )
+    caption = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, allow_null=True,
+        help_text="Barcha rasmlarga umumiy izoh (ixtiyoriy)"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GalleryAlbum
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GalleryAlbumSerializer(serializers.Serializer):
+    """Read serializer — ro'yxat uchun (rasmlar yo'q)."""
+    id = serializers.IntegerField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
+    translations = serializers.SerializerMethodField()
+    cover_image = serializers.SerializerMethodField()
+    event_date = serializers.DateField(allow_null=True)
+    photos_count = serializers.IntegerField(read_only=True)
+    is_active = serializers.BooleanField()
+    sort_order = serializers.IntegerField()
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def get_translations(self, obj):
+        return build_translations(obj, ['title', 'description'])
+
+    def get_cover_image(self, obj):
         if obj.cover_image:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.cover_image.url)
-            return obj.cover_image.url
+            return request.build_absolute_uri(obj.cover_image.url) if request else obj.cover_image.url
         return None
 
 
-class GalleryAlbumDetailSerializer(GalleryAlbumListSerializer):
-    """Galereya albomi detallari uchun serializer"""
-    photos = GalleryPhotoSerializer(many=True, read_only=True)
-    
-    class Meta(GalleryAlbumListSerializer.Meta):
-        fields = GalleryAlbumListSerializer.Meta.fields + ['photos', 'updated_at']
+class GalleryAlbumDetailSerializer(GalleryAlbumSerializer):
+    """Read serializer — detail uchun (rasmlar bilan)."""
+    photos = serializers.SerializerMethodField()
+
+    def get_photos(self, obj):
+        photos = obj.photos.all().order_by('sort_order', 'created_at')
+        return GalleryPhotoSerializer(photos, many=True, context=self.context).data
 
 
-class GalleryAlbumWriteSerializer(serializers.ModelSerializer):
-    """Galereya albomlarini yaratish/tahrirlash uchun serializer"""
-    
-    class Meta:
-        model = GalleryAlbum
-        fields = [
-            'title', 'slug', 'description', 'cover_image', 'event_date',
-            'is_active', 'sort_order'
-        ]
-    
-    def validate_slug(self, value):
-        """Slugning noyobligini tekshirish"""
-        if self.instance and self.instance.slug != value:
-            if GalleryAlbum.objects.filter(slug=value).exists():
-                raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        elif not self.instance and GalleryAlbum.objects.filter(slug=value).exists():
-            raise serializers.ValidationError("Bu slug allaqachon mavjud!")
-        return value
-    
-    def create(self, validated_data):
-        """Album yaratishda slug avtomatik yaratish"""
-        if 'slug' not in validated_data or not validated_data['slug']:
-            validated_data['slug'] = validated_data['title'].lower().replace(' ', '-')
-        return super().create(validated_data)
-    
-    def update(self, instance, validated_data):
-        """Albumni yangilash - slug bo'sh bo'lsa title dan yaratish"""
-        if 'slug' in validated_data and (not validated_data['slug'] or validated_data['slug'].strip() == ''):
-            validated_data['slug'] = validated_data.get('title', instance.title).lower().replace(' ', '-')
-        
-        return super().update(instance, validated_data)
+class GalleryAlbumWriteSerializer(serializers.Serializer):
+    """
+    Write serializer. Har bir til maydoni alohida flat field.
+    cover_image — multipart/form-data orqali yuboriladi.
+    Kamida bitta tilda title_* to'ldirilishi shart.
+    """
+    title_uz = serializers.CharField(
+        max_length=300, required=False, allow_blank=True,
+        help_text="Album nomi (O'zbek lotin)"
+    )
+    title_uz_cyrl = serializers.CharField(
+        max_length=300, required=False, allow_blank=True,
+        help_text="Album nomi (O'zbek kirill)"
+    )
+    title_ru = serializers.CharField(
+        max_length=300, required=False, allow_blank=True,
+        help_text="Album nomi (Rus)"
+    )
+    title_en = serializers.CharField(
+        max_length=300, required=False, allow_blank=True,
+        help_text="Album nomi (Ingliz)"
+    )
+    description_uz = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True,
+        help_text="Tavsif (O'zbek lotin)"
+    )
+    description_uz_cyrl = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True,
+        help_text="Tavsif (O'zbek kirill)"
+    )
+    description_ru = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True,
+        help_text="Tavsif (Rus)"
+    )
+    description_en = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True,
+        help_text="Tavsif (Ingliz)"
+    )
+    cover_image = serializers.ImageField(
+        required=False, allow_null=True,
+        help_text="Muqova rasmi (multipart/form-data)"
+    )
+    event_date = serializers.DateField(
+        required=False, allow_null=True,
+        help_text="Tadbir sanasi (YYYY-MM-DD)"
+    )
+    is_active = serializers.BooleanField(default=True)
+    sort_order = serializers.IntegerField(default=0)
 
-
-class GalleryPhotoUploadSerializer(serializers.ModelSerializer):
-    """Galereya rasmlarini yuklash uchun serializer"""
-    
-    class Meta:
-        model = GalleryPhoto
-        fields = ['image', 'thumbnail', 'caption', 'sort_order']
-    
     def validate(self, data):
-        """Rasm yuklash tekshiruvi"""
-        if not data.get('image'):
-            raise serializers.ValidationError("Asosiy rasm yuklash shart!")
+        titles = [
+            data.get('title_uz', ''),
+            data.get('title_ru', ''),
+            data.get('title_en', ''),
+            data.get('title_uz_cyrl', ''),
+        ]
+        if not any(titles):
+            raise serializers.ValidationError(
+                "Kamida bitta tilda album nomi kiritilishi shart (title_uz, title_ru yoki title_en)."
+            )
         return data
 
+    def create(self, validated_data):
+        return GalleryAlbum.objects.create(**validated_data)
 
-class UsefulLinkSerializer(serializers.ModelSerializer):
-    """Foydali havolalar uchun serializer"""
-    logo_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = UsefulLink
-        fields = ['id', 'name', 'url', 'logo', 'logo_url', 'description', 'sort_order', 'is_active']
-        read_only_fields = ['id']
-    
-    def get_logo_url(self, obj):
-        """Logo URL ni olish"""
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UsefulLink
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UsefulLinkSerializer(serializers.Serializer):
+    """Read serializer."""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField()
+    url = serializers.URLField()
+    logo = serializers.SerializerMethodField()
+    description = serializers.CharField(allow_null=True, allow_blank=True)
+    sort_order = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_logo(self, obj):
         if obj.logo:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.logo.url)
-            return obj.logo.url
+            return request.build_absolute_uri(obj.logo.url) if request else obj.logo.url
         return None
 
 
-class UsefulLinkWriteSerializer(serializers.ModelSerializer):
-    """Foydali havolalarni yaratish/tahrirlash uchun serializer"""
-    
-    class Meta:
-        model = UsefulLink
-        fields = ['name', 'url', 'logo', 'description', 'sort_order', 'is_active']
+class UsefulLinkWriteSerializer(serializers.Serializer):
+    """
+    Write serializer. logo — multipart/form-data orqali yuboriladi.
+    """
+    name = serializers.CharField(
+        max_length=200,
+        help_text="Havola nomi"
+    )
+    url = serializers.URLField(
+        max_length=500,
+        help_text="To'liq URL manzil (https://...)"
+    )
+    logo = serializers.ImageField(
+        required=False, allow_null=True,
+        help_text="Logo rasmi (ixtiyoriy, multipart/form-data)"
+    )
+    description = serializers.CharField(
+        max_length=300, required=False, allow_blank=True, allow_null=True,
+        help_text="Qisqa tavsif (ixtiyoriy)"
+    )
+    sort_order = serializers.IntegerField(default=0)
+    is_active = serializers.BooleanField(default=True)
+
+    def create(self, validated_data):
+        return UsefulLink.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
