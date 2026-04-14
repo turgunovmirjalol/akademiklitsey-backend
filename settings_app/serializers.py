@@ -1,29 +1,33 @@
 from rest_framework import serializers
-from .models import SiteSettings
+from .models import SiteSettings, Slider
 
 LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
 TRANS_FIELDS = ['short_name', 'full_name', 'address']
 
 
 def build_translations(obj, fields):
+    """Barcha tillar uchun tarjimalarni qaytaradi. Bosh bolsa ham bosh string bilan."""
     result = {}
     for lang in LANGS:
         data = {}
         for field in fields:
-            val = getattr(obj, f"{field}_{lang}", None) or ''
-            data[field] = val
-        if any(data.values()):
-            result[lang] = data
+            val = getattr(obj, f"{field}_{lang}", None)
+            data[field] = val if val is not None else ''
+        result[lang] = data
     return result
 
 
 def apply_lang_filter(data, lang):
+    """?lang= berilganda faqat o'sha tilni, yo'q bolsa uz fallback."""
     if not lang or lang not in LANGS:
         return data
     if isinstance(data, dict) and 'translations' in data:
         t = data.get('translations') or {}
+        chosen = t.get(lang, {})
+        if not any(chosen.values()):
+            chosen = t.get('uz', {})
         data = dict(data)
-        data['translations'] = {lang: t.get(lang, {})} if t else {}
+        data['translations'] = {lang: chosen}
     return data
 
 
@@ -183,6 +187,61 @@ class SiteSettingsWriteSerializer(serializers.Serializer):
             instance.save()
             return instance
         return SiteSettings.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+SLIDER_TRANS_FIELDS = ['title', 'description']
+
+
+class SliderSerializer(serializers.ModelSerializer):
+    """Read serializer — translations nested."""
+    image = serializers.SerializerMethodField()
+    translations = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Slider
+        fields = ['id', 'image', 'translations', 'sort_order', 'is_active']
+
+    def get_image(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+        return None
+
+    def get_translations(self, obj):
+        return build_translations(obj, SLIDER_TRANS_FIELDS)
+
+
+class SliderWriteSerializer(serializers.Serializer):
+    """Write serializer — flat fields, image multipart."""
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    title_uz      = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    title_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    title_ru      = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    title_en      = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+    description_uz      = serializers.CharField(required=False, allow_blank=True)
+    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True)
+    description_ru      = serializers.CharField(required=False, allow_blank=True)
+    description_en      = serializers.CharField(required=False, allow_blank=True)
+
+    sort_order = serializers.IntegerField(required=False, min_value=1, default=1)
+    is_active  = serializers.BooleanField(required=False, default=True)
+
+    def validate(self, data):
+        # Yaratishda rasm majburiy
+        if not self.instance and not data.get('image'):
+            raise serializers.ValidationError("Rasm (image) majburiy.")
+        return data
+
+    def create(self, validated_data):
+        return Slider.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():

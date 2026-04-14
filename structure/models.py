@@ -99,8 +99,8 @@ class Teacher(models.Model):
     achievements_en = models.TextField(null=True, blank=True, verbose_name="Yutuqlar (EN)")
 
     # Umumiy maydonlar
-    academic_degree = models.CharField(max_length=100, null=True, blank=True, verbose_name="Ilmiy daraja")
-    academic_rank = models.CharField(max_length=100, null=True, blank=True, verbose_name="Ilmiy unvon")
+    academic_degree = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ilmiy daraja")
+    academic_rank = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ilmiy unvon")
     category = models.CharField(
         max_length=10, choices=Category.choices,
         default=Category.NONE, verbose_name="Toifa"

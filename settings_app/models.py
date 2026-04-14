@@ -1,6 +1,35 @@
 from django.db import models
 
 
+class Slider(models.Model):
+    """
+    Bosh sahifa slider — rasm, title va description ko'p tilli (uz, uz_cyrl, ru, en).
+    """
+    image = models.ImageField(upload_to='slider/', verbose_name="Rasm")
+
+    title_uz      = models.CharField(max_length=200, blank=True, verbose_name="Sarlavha (UZ)")
+    title_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Sarlavha (UZ Kirill)")
+    title_ru      = models.CharField(max_length=200, blank=True, verbose_name="Sarlavha (RU)")
+    title_en      = models.CharField(max_length=200, blank=True, verbose_name="Sarlavha (EN)")
+
+    description_uz      = models.TextField(blank=True, verbose_name="Tavsif (UZ)")
+    description_uz_cyrl = models.TextField(blank=True, verbose_name="Tavsif (UZ Kirill)")
+    description_ru      = models.TextField(blank=True, verbose_name="Tavsif (RU)")
+    description_en      = models.TextField(blank=True, verbose_name="Tavsif (EN)")
+
+    sort_order = models.PositiveIntegerField(default=1, verbose_name="Tartib raqami")
+    is_active  = models.BooleanField(default=True, verbose_name="Faol")
+
+    class Meta:
+        db_table = 'slider'
+        verbose_name = "Slider"
+        verbose_name_plural = "Slayderlar"
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return self.title_uz or self.title_ru or self.title_en or f"Slider #{self.pk}"
+
+
 class SiteSettings(models.Model):
     """
     Sayt sozlamalari — faqat bitta yozuv bo'lishi kerak (Singleton).

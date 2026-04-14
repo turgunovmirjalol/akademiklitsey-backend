@@ -1,23 +1,22 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 from .models import AdmissionInfo, AdmissionSubject, AdmissionDocument, FAQ
 
 LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
 
 
 def build_translations(obj, fields):
-    """Model instance dan barcha tillardagi tarjimalarni dict sifatida qaytaradi."""
+    """Barcha tillar uchun tarjimalarni qaytaradi. Bosh bolsa ham bosh string bilan."""
     result = {}
     for lang in LANGS:
         data = {}
         for field in fields:
-            val = getattr(obj, f"{field}_{lang}", None) or ''
-            data[field] = val
-        if any(data.values()):
-            result[lang] = data
+            val = getattr(obj, f"{field}_{lang}", None)
+            data[field] = val if val is not None else ''
+        result[lang] = data
     return result
 
 
-# ─── AdmissionInfo ───────────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ AdmissionInfo в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 class AdmissionInfoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,7 +67,7 @@ class AdmissionInfoWriteSerializer(serializers.ModelSerializer):
         return data
 
 
-# ─── AdmissionSubject ────────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ AdmissionSubject в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 class AdmissionSubjectSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -121,7 +120,7 @@ class AdmissionSubjectWriteSerializer(serializers.Serializer):
         return instance
 
 
-# ─── AdmissionDocument ───────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ AdmissionDocument в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 class AdmissionDocumentSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -176,7 +175,7 @@ class AdmissionDocumentWriteSerializer(serializers.Serializer):
         return instance
 
 
-# ─── FAQ ─────────────────────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ FAQ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 class FAQSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -227,9 +226,10 @@ class FAQWriteSerializer(serializers.Serializer):
         return instance
 
 
-# ─── Combined ────────────────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Combined в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 class AdmissionCurrentSerializer(serializers.Serializer):
     admission_info = AdmissionInfoSerializer()
     subjects = AdmissionSubjectSerializer(many=True)
     documents = AdmissionDocumentSerializer(many=True)
+

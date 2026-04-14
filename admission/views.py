@@ -26,6 +26,29 @@ from .serializers import (
     FAQWriteSerializer,
 )
 
+LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+
+
+def apply_lang_filter(serializer_data, lang):
+    """?lang= berilganda faqat o'sha tilni, yo'q bo'lsa uz fallback."""
+    if not lang or lang not in LANGS:
+        return serializer_data
+
+    def _filter(item):
+        if not isinstance(item, dict) or 'translations' not in item:
+            return item
+        t = item.get('translations') or {}
+        chosen = t.get(lang, {})
+        if not any(chosen.values()):
+            chosen = t.get('uz', {})
+        item = dict(item)
+        item['translations'] = {lang: chosen}
+        return item
+
+    if isinstance(serializer_data, list):
+        return [_filter(i) for i in serializer_data]
+    return _filter(serializer_data)
+
 # ─── Swagger umumiy parametrlar ──────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
@@ -35,27 +58,6 @@ LANG_PARAM = openapi.Parameter(
     enum=['uz', 'uz_cyrl', 'ru', 'en'],
     required=False,
 )
-
-
-def filter_by_lang(data: dict, lang: str) -> dict:
-    """
-    Agar ?lang= berilgan bo'lsa, translations ichidan faqat o'sha tilni qaytaradi.
-    """
-    if not lang or lang not in ('uz', 'uz_cyrl', 'ru', 'en'):
-        return data
-    if isinstance(data, dict) and 'translations' in data:
-        t = data.get('translations') or {}
-        data['translations'] = {lang: t.get(lang, {})} if t else {}
-    return data
-
-
-def apply_lang_filter(serializer_data, lang: str):
-    """List yoki detail response uchun til filtrini qo'llaydi."""
-    if not lang:
-        return serializer_data
-    if isinstance(serializer_data, list):
-        return [filter_by_lang(item, lang) for item in serializer_data]
-    return filter_by_lang(serializer_data, lang)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -233,7 +235,9 @@ class AdmissionSubjectsView(generics.ListCreateAPIView):
             openapi.Parameter('subject_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (EN)"),
             openapi.Parameter('subject_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (UZ Kirill)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
+            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
+            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview'], default='test'),
             openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=True, description="Maksimal ball"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
@@ -284,9 +288,13 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_summary="Imtihon fanini to'liq yangilash",
         manual_parameters=[
             openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Fan nomi (UZ)"),
+            openapi.Parameter('subject_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (UZ Kirill)"),
             openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (RU)"),
+            openapi.Parameter('subject_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
+            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
+            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview']),
             openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=True),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -306,8 +314,13 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_summary="Imtihon fanini qisman yangilash",
         manual_parameters=[
             openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (UZ)"),
+            openapi.Parameter('subject_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (UZ Kirill)"),
             openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (RU)"),
+            openapi.Parameter('subject_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
+            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
+            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview']),
             openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -382,6 +395,7 @@ class AdmissionDocumentsView(generics.ListCreateAPIView):
             openapi.Parameter('document_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (EN)"),
             openapi.Parameter('document_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (UZ Kirill)"),
             openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
+            openapi.Parameter('note_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ Kirill)"),
             openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
             openapi.Parameter('note_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (EN)"),
             openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX, JPG va h.k.)"),
@@ -435,10 +449,13 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
         manual_parameters=[
             openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Hujjat nomi (UZ)"),
+            openapi.Parameter('document_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (UZ Kirill)"),
             openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (RU)"),
             openapi.Parameter('document_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (EN)"),
             openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
+            openapi.Parameter('note_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ Kirill)"),
             openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
+            openapi.Parameter('note_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (EN)"),
             openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX va h.k.)"),
             openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
@@ -459,8 +476,13 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
         manual_parameters=[
             openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (UZ)"),
+            openapi.Parameter('document_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (UZ Kirill)"),
             openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (RU)"),
+            openapi.Parameter('document_name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (EN)"),
             openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
+            openapi.Parameter('note_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ Kirill)"),
+            openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
+            openapi.Parameter('note_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (EN)"),
             openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX va h.k.)"),
             openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -623,9 +645,13 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_summary="FAQ ni to'liq yangilash",
         manual_parameters=[
             openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Savol (UZ)"),
+            openapi.Parameter('question_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (UZ Kirill)"),
             openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (RU)"),
+            openapi.Parameter('question_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (EN)"),
             openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Javob (UZ)"),
+            openapi.Parameter('answer_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (UZ Kirill)"),
             openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (RU)"),
+            openapi.Parameter('answer_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (EN)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['admission', 'general', 'education', 'payment']),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
@@ -646,9 +672,13 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_summary="FAQ ni qisman yangilash",
         manual_parameters=[
             openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (UZ)"),
+            openapi.Parameter('question_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (UZ Kirill)"),
             openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (RU)"),
+            openapi.Parameter('question_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (EN)"),
             openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (UZ)"),
+            openapi.Parameter('answer_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (UZ Kirill)"),
             openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (RU)"),
+            openapi.Parameter('answer_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (EN)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['admission', 'general', 'education', 'payment']),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),

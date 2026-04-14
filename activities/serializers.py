@@ -5,15 +5,14 @@ LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
 
 
 def build_translations(obj, fields):
-    """Model instance dan barcha tillardagi tarjimalarni dict sifatida qaytaradi."""
+    """Barcha tillar uchun tarjimalarni qaytaradi. Bosh bolsa ham bosh string bilan."""
     result = {}
     for lang in LANGS:
         data = {}
         for field in fields:
-            val = getattr(obj, f"{field}_{lang}", None) or ''
-            data[field] = val
-        if any(data.values()):
-            result[lang] = data
+            val = getattr(obj, f"{field}_{lang}", None)
+            data[field] = val if val is not None else ''
+        result[lang] = data
     return result
 
 

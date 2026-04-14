@@ -1,6 +1,32 @@
 from django.contrib import admin
 from django.utils.html import format_html, mark_safe
-from .models import SiteSettings
+from .models import SiteSettings, Slider
+
+
+@admin.register(Slider)
+class SliderAdmin(admin.ModelAdmin):
+    list_display = ['image_preview', '__str__', 'sort_order', 'is_active']
+    list_editable = ['sort_order', 'is_active']
+    list_display_links = ['image_preview', '__str__']
+
+    fieldsets = (
+        ("Rasm", {'fields': ('image', 'image_preview')}),
+        ("O'zbek tili (Lotin)",  {'fields': ('title_uz', 'description_uz')}),
+        ("O'zbek tili (Kirill)", {'fields': ('title_uz_cyrl', 'description_uz_cyrl'), 'classes': ('collapse',)}),
+        ("Rus tili",             {'fields': ('title_ru', 'description_ru'), 'classes': ('collapse',)}),
+        ("Ingliz tili",          {'fields': ('title_en', 'description_en'), 'classes': ('collapse',)}),
+        ("Sozlamalar",           {'fields': ('sort_order', 'is_active')}),
+    )
+    readonly_fields = ['image_preview']
+
+    def image_preview(self, obj):
+        if obj and obj.image:
+            return format_html(
+                '<img src="{}" style="height:80px;border-radius:6px;border:1px solid #ddd;" />',
+                obj.image.url,
+            )
+        return mark_safe('<span style="color:#999">Rasm yuklanmagan</span>')
+    image_preview.short_description = "Ko'rinish"
 
 
 @admin.register(SiteSettings)

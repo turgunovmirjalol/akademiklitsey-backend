@@ -169,3 +169,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Akademik Litsey",
+    "site_header": "Akademik Litsey",
+    "site_brand": "AL Admin",
+    "welcome_sign": "Xush kelibsiz",
+    "show_ui_builder": False,
+}

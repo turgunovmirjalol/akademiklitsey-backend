@@ -7,27 +7,29 @@ ANN_FIELDS = ['title', 'short_description', 'content']
 
 
 def build_translations(obj, fields):
-    """Model instance dan barcha tillardagi tarjimalarni dict sifatida qaytaradi."""
+    """Barcha tillar uchun tarjimalarni qaytaradi. Bosh bolsa ham bosh string bilan."""
     result = {}
     for lang in LANGS:
         data = {}
         for field in fields:
-            val = getattr(obj, f"{field}_{lang}", None) or ''
-            data[field] = val
-        if any(data.values()):
-            result[lang] = data
+            val = getattr(obj, f"{field}_{lang}", None)
+            data[field] = val if val is not None else ''
+        result[lang] = data
     return result
 
 
 def apply_lang_filter(data, lang):
-    """Response data dan faqat berilgan tildagi translations ni qaytaradi."""
+    """?lang= berilganda faqat o'sha tilni, yo'q bolsa uz fallback."""
     if not lang or lang not in LANGS:
         return data
     def _filter(item):
         if isinstance(item, dict) and 'translations' in item:
             t = item.get('translations') or {}
+            chosen = t.get(lang, {})
+            if not any(chosen.values()):
+                chosen = t.get('uz', {})
             item = dict(item)
-            item['translations'] = {lang: t.get(lang, {})} if t else {}
+            item['translations'] = {lang: chosen}
         return item
     if isinstance(data, list):
         return [_filter(i) for i in data]

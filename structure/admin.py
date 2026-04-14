@@ -102,8 +102,16 @@ class TeacherAdmin(admin.ModelAdmin):
             'fields': ('bio_uz', 'achievements_uz'),
             'classes': ('collapse',),
         }),
+        ("Tarjimai hol (O'zbek kirill)", {
+            'fields': ('bio_uz_cyrl', 'achievements_uz_cyrl'),
+            'classes': ('collapse',),
+        }),
         ("Tarjimai hol (Rus)", {
             'fields': ('bio_ru', 'achievements_ru'),
+            'classes': ('collapse',),
+        }),
+        ("Tarjimai hol (Ingliz)", {
+            'fields': ('bio_en', 'achievements_en'),
             'classes': ('collapse',),
         }),
         ("Sozlamalar", {
@@ -184,8 +192,16 @@ class ManagementAdmin(admin.ModelAdmin):
             'fields': ('bio_uz',),
             'classes': ('collapse',),
         }),
+        ("Tarjimai hol (O'zbek kirill)", {
+            'fields': ('bio_uz_cyrl',),
+            'classes': ('collapse',),
+        }),
         ("Tarjimai hol (Rus)", {
             'fields': ('bio_ru',),
+            'classes': ('collapse',),
+        }),
+        ("Tarjimai hol (Ingliz)", {
+            'fields': ('bio_en',),
             'classes': ('collapse',),
         }),
         ("Sozlamalar", {

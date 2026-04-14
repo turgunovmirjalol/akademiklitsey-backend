@@ -2,6 +2,7 @@ from rest_framework import generics, filters, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -35,7 +36,7 @@ class StatisticListCreateView(APIView):
     GET  — barcha statistikalar (hamma ko'rishi mumkin)
     POST — yangi statistika yaratish (faqat admin)
     """
-    parser_classes = []  # JSON only — rasm/fayl yo'q
+    parser_classes = [JSONParser]
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -88,7 +89,7 @@ class StatisticDetailView(APIView):
     PATCH  — qisman yangilash (faqat admin)
     DELETE — o'chirish (faqat admin)
     """
-    parser_classes = []
+    parser_classes = [JSONParser]
 
     def get_permissions(self):
         if self.request.method == 'GET':
