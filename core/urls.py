@@ -39,6 +39,5 @@ urlpatterns += [
     path('token/refresh/', token_refresh),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Media fayllar har doim serve qilinadi (production da Nginx orqali yoki whitenoise)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
