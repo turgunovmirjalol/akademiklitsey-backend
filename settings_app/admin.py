@@ -73,7 +73,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     logo_preview.short_description = "Logo ko'rinishi"
 
     def has_add_permission(self, request):
-        return not SiteSettings.objects.exists()
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return False

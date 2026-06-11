@@ -158,28 +158,7 @@ class SiteSettingsWriteSerializer(serializers.Serializer):
         return validate_image(value)
 
     def validate(self, data):
-        # Yaratishda (instance yo'q) kamida bitta tilda short_name va full_name shart
-        if not self.instance:
-            short_names = [
-                data.get('short_name_uz', ''),
-                data.get('short_name_ru', ''),
-                data.get('short_name_en', ''),
-                data.get('short_name_uz_cyrl', ''),
-            ]
-            full_names = [
-                data.get('full_name_uz', ''),
-                data.get('full_name_ru', ''),
-                data.get('full_name_en', ''),
-                data.get('full_name_uz_cyrl', ''),
-            ]
-            if not any(short_names):
-                raise serializers.ValidationError(
-                    "Kamida bitta tilda qisqa nom kiritilishi shart (short_name_uz, short_name_ru yoki short_name_en)."
-                )
-            if not any(full_names):
-                raise serializers.ValidationError(
-                    "Kamida bitta tilda to'liq nom kiritilishi shart (full_name_uz, full_name_ru yoki full_name_en)."
-                )
+        # Validatsiya cheklovini olib tashladik, chunki default instance bor
         return data
 
     def create(self, validated_data):

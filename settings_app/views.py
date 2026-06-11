@@ -57,7 +57,6 @@ ALL_WRITE_PARAMS = MULTILANG_PARAMS + COMMON_PARAMS
 class SiteSettingsAPIView(APIView):
     """
     GET   — sayt sozlamalarini olish (hamma uchun ochiq)
-    POST  — sozlamalarni yaratish (faqat admin, bir marta)
     PUT   — to'liq yangilash (faqat admin)
     PATCH — qisman yangilash (faqat admin)
     """
@@ -69,7 +68,15 @@ class SiteSettingsAPIView(APIView):
         return [IsAdminUser()]
 
     def _get_instance(self):
-        return SiteSettings.get_instance()
+        instance = SiteSettings.get_instance()
+        if not instance:
+            instance = SiteSettings.objects.create(
+                short_name_uz="Akademik Litsey",
+                full_name_uz="Akademik Litsey",
+                address_uz="Toshkent shahri",
+                established_year=2000,
+            )
+        return instance
 
     @swagger_auto_schema(
         operation_summary="Sayt sozlamalarini olish",
@@ -80,49 +87,14 @@ class SiteSettingsAPIView(APIView):
         manual_parameters=[LANG_PARAM],
         responses={
             200: SiteSettingsSerializer,
-            404: openapi.Response(description="Sozlamalar hali yaratilmagan"),
         },
         tags=["Settings"],
     )
     def get(self, request):
         instance = self._get_instance()
-        if not instance:
-            return Response(
-                {'detail': "Sayt sozlamalari hali yaratilmagan."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
         lang = request.query_params.get('lang')
         data = SiteSettingsSerializer(instance, context={'request': request}).data
         return Response(apply_lang_filter(data, lang))
-
-    @swagger_auto_schema(
-        operation_summary="Sayt sozlamalarini yaratish",
-        operation_description=(
-            "Faqat admin. Faqat bir marta yaratiladi. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `short_name_*` va `full_name_*` to'ldirilishi shart."
-        ),
-        manual_parameters=ALL_WRITE_PARAMS,
-        consumes=['multipart/form-data'],
-        responses={
-            201: SiteSettingsSerializer,
-            400: openapi.Response(description="Validatsiya xatosi yoki sozlamalar allaqachon mavjud"),
-            403: openapi.Response(description="Ruxsat yo'q"),
-        },
-        tags=["Settings"],
-    )
-    def post(self, request):
-        if self._get_instance():
-            return Response(
-                {'detail': "Sozlamalar allaqachon mavjud. Yangilash uchun PATCH ishlatilsin."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        serializer = SiteSettingsWriteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
-        return Response(
-            SiteSettingsSerializer(instance, context={'request': request}).data,
-            status=status.HTTP_201_CREATED,
-        )
 
     @swagger_auto_schema(
         operation_summary="Sozlamalarni to'liq yangilash",
@@ -133,17 +105,11 @@ class SiteSettingsAPIView(APIView):
             200: SiteSettingsSerializer,
             400: openapi.Response(description="Validatsiya xatosi"),
             403: openapi.Response(description="Ruxsat yo'q"),
-            404: openapi.Response(description="Sozlamalar topilmadi"),
         },
         tags=["Settings"],
     )
     def put(self, request):
         instance = self._get_instance()
-        if not instance:
-            return Response(
-                {'detail': "Sozlamalar topilmadi. Avval POST bilan yarating."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
         serializer = SiteSettingsWriteSerializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -158,17 +124,11 @@ class SiteSettingsAPIView(APIView):
             200: SiteSettingsSerializer,
             400: openapi.Response(description="Validatsiya xatosi"),
             403: openapi.Response(description="Ruxsat yo'q"),
-            404: openapi.Response(description="Sozlamalar topilmadi"),
         },
         tags=["Settings"],
     )
     def patch(self, request):
         instance = self._get_instance()
-        if not instance:
-            return Response(
-                {'detail': "Sozlamalar topilmadi. Avval POST bilan yarating."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
         serializer = SiteSettingsWriteSerializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
