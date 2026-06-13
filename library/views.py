@@ -20,7 +20,7 @@ LANGS = ['uz', 'ru']
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru",
+    description="Filter response language: uz | ru",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -33,9 +33,9 @@ LANG_PARAM = openapi.Parameter(
 
 class LibraryStatsView(APIView):
     """
-    Kutubxona statistikasi — singleton.
-    GET  — hamma uchun ochiq
-    PUT  — faqat admin (qisman yangilash ham qo'llab-quvvatlanadi)
+    Library statistics — singleton.
+    GET  — open to everyone
+    PUT  — admin only (partial update supported)
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -45,8 +45,8 @@ class LibraryStatsView(APIView):
         return [IsAdminOrReadOnly()]
 
     @swagger_auto_schema(
-        operation_summary="Kutubxona statistikasi",
-        operation_description="Kitoblar, elektron resurslar, jurnallar va o'quv qo'llanmalari soni.",
+        operation_summary="Library statistics",
+        operation_description="Number of books, electronic resources, journals and study guides.",
         responses={200: LibraryStatsSerializer},
         tags=['Library - Stats'],
     )
@@ -55,8 +55,8 @@ class LibraryStatsView(APIView):
         return Response(LibraryStatsSerializer(obj).data)
 
     @swagger_auto_schema(
-        operation_summary="Kutubxona statistikasini yangilash",
-        operation_description="Faqat admin. Partial update qo'llab-quvvatlanadi.",
+        operation_summary="Update library statistics",
+        operation_description="Admin only. Partial update supported.",
         request_body=LibraryStatsWriteSerializer,
         responses={200: LibraryStatsSerializer},
         tags=['Library - Stats'],
@@ -75,9 +75,9 @@ class LibraryStatsView(APIView):
 
 class LibraryResourceListView(generics.ListCreateAPIView):
     """
-    Kutubxona resurslari ro'yxati va yaratish.
-    GET  — hamma uchun ochiq
-    POST — faqat admin
+    Library resources list and create.
+    GET  — open to everyone
+    POST — admin only
     """
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -96,14 +96,14 @@ class LibraryResourceListView(generics.ListCreateAPIView):
         return LibraryResourceWriteSerializer if self.request.method == 'POST' else LibraryResourceSerializer
 
     @swagger_auto_schema(
-        operation_summary="Kutubxona resurslari ro'yxati",
+        operation_summary="Library resources list",
         operation_description=(
-            "Barcha resurslar. Filterlar:\n"
-            "- `?category=darslik|qollanma|jurnal|amaliy|elektron|boshqa`\n"
+            "All resources. Filters:\n"
+            "- `?category=textbook|manual|journal|practical|electronic|other`\n"
             "- `?file_type=pdf|docx|xlsx|pptx|other`\n"
             "- `?is_featured=true|false`\n"
             "- `?is_active=true|false`\n"
-            "- `?search=...` — nom yoki muallif bo'yicha\n"
+            "- `?search=...` — search by name or author\n"
             "- `?lang=uz|ru`"
         ),
         manual_parameters=[LANG_PARAM],
@@ -117,20 +117,20 @@ class LibraryResourceListView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi resurs yaratish",
-        operation_description="Faqat admin. `multipart/form-data` orqali yuboriladi.",
+        operation_summary="Create new resource",
+        operation_description="Admin only. Sent via `multipart/form-data`.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Author"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
-                              enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa'], default='darslik'),
+                              enum=['textbook', 'manual', 'journal', 'practical', 'electronic', 'other'], default='textbook'),
             openapi.Parameter('file_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['pdf', 'docx', 'xlsx', 'pptx', 'other'], default='pdf'),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resurs fayli"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
+            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resource file"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
@@ -138,7 +138,7 @@ class LibraryResourceListView(generics.ListCreateAPIView):
         consumes=['multipart/form-data'],
         responses={
             201: LibraryResourceSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=['Library - Resources'],
     )
@@ -158,10 +158,10 @@ class LibraryResourceListView(generics.ListCreateAPIView):
 
 class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
     """
-    Bitta resurs — ko'rish va tahrirlash.
-    GET   — hamma uchun ochiq
-    PUT   — faqat admin (to'liq yangilash)
-    PATCH — faqat admin (qisman yangilash)
+    Single resource — view and edit.
+    GET   — open to everyone
+    PUT   — admin only (full update)
+    PATCH — admin only (partial update)
     """
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -175,7 +175,7 @@ class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
         return LibraryResourceSerializer
 
     @swagger_auto_schema(
-        operation_summary="Resurs detali",
+        operation_summary="Resource detail",
         manual_parameters=[LANG_PARAM],
         responses={200: LibraryResourceSerializer},
         tags=['Library - Resources'],
@@ -187,20 +187,20 @@ class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Resursni to'liq yangilash",
-        operation_description="Faqat admin. `multipart/form-data`.",
+        operation_summary="Update resource completely",
+        operation_description="Admin only. `multipart/form-data`.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Author"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
-                              enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa']),
+                              enum=['textbook', 'manual', 'journal', 'practical', 'electronic', 'other']),
             openapi.Parameter('file_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['pdf', 'docx', 'xlsx', 'pptx', 'other']),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resurs fayli"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
+            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resource file"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -217,20 +217,20 @@ class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
         return Response(LibraryResourceSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Resursni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar.",
+        operation_summary="Update resource partially",
+        operation_description="Admin only. Only fields that need to be changed.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Author"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
-                              enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa']),
+                              enum=['textbook', 'manual', 'journal', 'practical', 'electronic', 'other']),
             openapi.Parameter('file_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['pdf', 'docx', 'xlsx', 'pptx', 'other']),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resurs fayli"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
+            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Resource file"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),

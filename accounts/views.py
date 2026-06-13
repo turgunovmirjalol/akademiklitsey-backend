@@ -16,40 +16,40 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class ChangePasswordView(APIView):
-    """Parolni o'zgartirish uchun API view"""
+    """API view for changing user password"""
     permission_classes = [IsAuthenticated]
-    
+
     @swagger_auto_schema(
-        operation_description="Foydalanuvchi parolini o'zgartirish",
-        operation_summary="Parolni o'zgartirish",
+        operation_description="Change user password",
+        operation_summary="Change password",
         request_body=ChangePasswordSerializer,
         responses={
             200: openapi.Response(
-                description="Parol muvaffaqiyatli o'zgartirildi",
+                description="Password changed successfully",
                 examples={
                     "application/json": {
                         "success": True,
-                        "message": "Parol muvaffaqiyatli o'zgartirildi.",
-                        "detail": "Yangi parolingiz bilan tizimga kirishingiz mumkin."
+                        "message": "Password changed successfully.",
+                        "detail": "You can now log in with your new password."
                     }
                 }
             ),
             400: openapi.Response(
-                description="Validatsiya xatoligi",
+                description="Validation error",
                 examples={
                     "application/json": {
                         "success": False,
-                        "message": "Parolni o'zgartirishda xatolik yuz berdi.",
+                        "message": "Password change failed.",
                         "errors": {
-                            "old_password": ["Joriy parol noto'g'ri kiritilgan."],
-                            "new_password": ["Bu parol juda oddiy."],
-                            "confirm_password": ["Yangi parol va tasdiqlash paroli bir xil bo'lishi kerak."]
+                            "old_password": ["Current password is incorrect."],
+                            "new_password": ["This password is too common."],
+                            "confirm_password": ["New password and confirmation do not match."]
                         }
                     }
                 }
             ),
             401: openapi.Response(
-                description="Autentifikatsiya talab qilinadi",
+                description="Authentication required",
                 examples={
                     "application/json": {
                         "detail": "Authentication credentials were not provided."
@@ -61,30 +61,30 @@ class ChangePasswordView(APIView):
     )
     def post(self, request):
         """
-        Foydalanuvchi parolini o'zgartirish
-        
+        Change user password
+
         Request body:
         {
-            "old_password": "joriy_parol",
-            "new_password": "yangi_parol", 
-            "confirm_password": "yangi_parol_takrori"
+            "old_password": "current_password",
+            "new_password": "new_password",
+            "confirm_password": "confirm_new_password"
         }
         """
         serializer = ChangePasswordSerializer(
             data=request.data,
             context={'request': request}
         )
-        
+
         if serializer.is_valid():
             serializer.save()
             return Response({
                 'success': True,
-                'message': 'Parol muvaffaqiyatli o\'zgartirildi.',
-                'detail': 'Yangi parolingiz bilan tizimga kirishingiz mumkin.'
+                'message': 'Password changed successfully.',
+                'detail': 'You can now log in with your new password.'
             }, status=status.HTTP_200_OK)
-        
+
         return Response({
             'success': False,
-            'message': 'Parolni o\'zgartirishda xatolik yuz berdi.',
+            'message': 'Password change failed.',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)

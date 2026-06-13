@@ -18,11 +18,11 @@ from .serializers import (
     apply_lang_filter,
 )
 
-# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+# ─── Swagger parameters ─────────────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru",
+    description="Filter response language: uz | ru",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -30,7 +30,7 @@ LANG_PARAM = openapi.Parameter(
 
 ACTIVE_ONLY_PARAM = openapi.Parameter(
     'active_only', openapi.IN_QUERY,
-    description="true — muddati o'tmagan e'lonlar (faqat Announcement uchun)",
+    description="true — only active announcements (not expired)",
     type=openapi.TYPE_BOOLEAN,
     required=False,
 )
@@ -72,14 +72,14 @@ class NewsListCreateAPIView(generics.ListCreateAPIView):
         return NewsWriteSerializer if self.request.method == 'POST' else NewsSerializer
 
     @swagger_auto_schema(
-        operation_summary="Yangiliklar ro'yxati",
+        operation_summary="News list",
         operation_description=(
-            "Barcha yangiliklar. Filterlar:\n"
+            "All news. Filters:\n"
             "- `?status=draft|published|archived`\n"
             "- `?is_featured=true|false`\n"
-            "- `?search=...` — sarlavha/tavsif bo'yicha qidirish\n"
+            "- `?search=...` — search by title/description\n"
             "- `?ordering=published_at|-published_at|views_count`\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: NewsSerializer(many=True)},
@@ -96,28 +96,28 @@ class NewsListCreateAPIView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi yangilik yaratish",
+        operation_summary="Create new news",
         operation_description=(
-            "Autentifikatsiya talab qilinadi. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` to'ldirilishi shart."
+            "Authentication required. Sent via **`multipart/form-data`**.\n\n"
+            "At least one language `title_*` must be filled."
         ),
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: NewsSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            401: openapi.Response(description="Autentifikatsiya talab qilinadi"),
+            400: openapi.Response(description="Validation error"),
+            401: openapi.Response(description="Authentication required"),
         },
         tags=['Content - News'],
     )
@@ -149,10 +149,10 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return NewsSerializer
 
     @swagger_auto_schema(
-        operation_summary="Yangilik detali",
-        operation_description="Bitta yangilik. Ko'rishlar soni avtomatik oshadi. ?lang= bilan til filtri.",
+        operation_summary="News detail",
+        operation_description="Single news item. View count increments automatically. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: NewsSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: NewsSerializer, 404: openapi.Response(description="Not found")},
         tags=['Content - News'],
     )
     def get(self, request, *args, **kwargs):
@@ -163,22 +163,22 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangilikni to'liq yangilash",
-        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update news completely",
+        operation_description="Authenticated user only. Sent via **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived'], default='draft'),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
-        responses={200: NewsSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: NewsSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Content - News'],
     )
     def put(self, request, *args, **kwargs):
@@ -189,22 +189,22 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(NewsSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Yangilikni qisman yangilash",
-        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update news partially",
+        operation_description="Authenticated user only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived']),
             openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
-        responses={200: NewsSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: NewsSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Content - News'],
     )
     def patch(self, request, *args, **kwargs):
@@ -215,8 +215,8 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(NewsSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Yangilikni o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete news",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=['Content - News'],
     )
     def delete(self, request, *args, **kwargs):
@@ -225,7 +225,7 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             'id': obj.id,
             'slug': obj.slug,
             'title': obj.title_uz or obj.title_ru or '',
-            'detail': "Yangilik muvaffaqiyatli o'chirildi.",
+            'detail': "News deleted successfully.",
         }
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)
@@ -264,14 +264,14 @@ class AnnouncementListCreateAPIView(generics.ListCreateAPIView):
         return AnnouncementWriteSerializer if self.request.method == 'POST' else AnnouncementSerializer
 
     @swagger_auto_schema(
-        operation_summary="E'lonlar ro'yxati",
+        operation_summary="Announcements list",
         operation_description=(
-            "Barcha e'lonlar. Filterlar:\n"
+            "All announcements. Filters:\n"
             "- `?status=draft|published|archived`\n"
             "- `?is_important=true|false`\n"
-            "- `?active_only=true` — muddati o'tmagan e'lonlar\n"
-            "- `?search=...` — sarlavha/tavsif bo'yicha qidirish\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?active_only=true` — only non-expired announcements\n"
+            "- `?search=...` — search by title/description\n"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM, ACTIVE_ONLY_PARAM],
         responses={200: AnnouncementSerializer(many=True)},
@@ -288,29 +288,29 @@ class AnnouncementListCreateAPIView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi e'lon yaratish",
+        operation_summary="Create new announcement",
         operation_description=(
-            "Autentifikatsiya talab qilinadi. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` to'ldirilishi shart."
+            "Authentication required. Sent via **`multipart/form-data`**.\n\n"
+            "At least one language `title_*` must be filled."
         ),
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
             openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
-            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Expiration date (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: AnnouncementSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            401: openapi.Response(description="Autentifikatsiya talab qilinadi"),
+            400: openapi.Response(description="Validation error"),
+            401: openapi.Response(description="Authentication required"),
         },
         tags=['Content - Announcements'],
     )
@@ -342,10 +342,10 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return AnnouncementSerializer
 
     @swagger_auto_schema(
-        operation_summary="E'lon detali",
-        operation_description="Bitta e'lon. Ko'rishlar soni avtomatik oshadi. ?lang= bilan til filtri.",
+        operation_summary="Announcement detail",
+        operation_description="Single announcement. View count increments automatically. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: AnnouncementSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: AnnouncementSerializer, 404: openapi.Response(description="Not found")},
         tags=['Content - Announcements'],
     )
     def get(self, request, *args, **kwargs):
@@ -357,23 +357,23 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="E'lonni to'liq yangilash",
-        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update announcement completely",
+        operation_description="Authenticated user only. Sent via **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
             openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
-            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Expiration date (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
-        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Content - Announcements'],
     )
     def put(self, request, *args, **kwargs):
@@ -384,23 +384,23 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(AnnouncementSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="E'lonni qisman yangilash",
-        operation_description="Faqat autentifikatsiyadan o'tgan foydalanuvchi. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update announcement partially",
+        operation_description="Authenticated user only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (UZ)"),
-            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq matn (RU)"),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Asosiy rasm"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
+            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
+            openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
+            openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived']),
             openapi.Parameter('is_important', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muddati tugash sanasi (ISO 8601)"),
-            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nashr sanasi (ISO 8601)"),
+            openapi.Parameter('expires_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Expiration date (ISO 8601)"),
+            openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
-        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: AnnouncementSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Content - Announcements'],
     )
     def patch(self, request, *args, **kwargs):
@@ -411,8 +411,8 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(AnnouncementSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="E'lonni o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete announcement",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=['Content - Announcements'],
     )
     def delete(self, request, *args, **kwargs):
@@ -421,7 +421,7 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             'id': obj.id,
             'slug': obj.slug,
             'title': obj.title_uz or obj.title_ru or '',
-            'detail': "E'lon muvaffaqiyatli o'chirildi.",
+            'detail': "Announcement deleted successfully.",
         }
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)

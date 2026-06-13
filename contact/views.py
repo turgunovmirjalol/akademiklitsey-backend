@@ -19,11 +19,11 @@ from .serializers import (
 )
 
 
-# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+# ─── Swagger parameters ─────────────────────────────────────────────────────
 
 STATUS_PARAM = openapi.Parameter(
     'status', openapi.IN_QUERY,
-    description="Holat bo'yicha filter: new | read | replied | archived",
+    description="Filter by status: new | read | replied | archived",
     type=openapi.TYPE_STRING,
     enum=['new', 'read', 'replied', 'archived'],
     required=False,
@@ -31,7 +31,7 @@ STATUS_PARAM = openapi.Parameter(
 
 SUBJECT_PARAM = openapi.Parameter(
     'subject', openapi.IN_QUERY,
-    description="Mavzu bo'yicha filter: admission | general | complaint | suggestion | other",
+    description="Filter by subject: admission | general | complaint | suggestion | other",
     type=openapi.TYPE_STRING,
     enum=['admission', 'general', 'complaint', 'suggestion', 'other'],
     required=False,
@@ -46,58 +46,58 @@ class ContactPagination(PageNumberPagination):
     max_page_size = 100
 
 
-# ─── Public: Xabar yuborish ──────────────────────────────────────────────────
+# ─── Public: Send message ──────────────────────────────────────────────────
 
 class ContactMessageCreateView(APIView):
-    """Sayt tashrif buyuruvchilari uchun xabar yuborish"""
+    """Send message for website visitors"""
     permission_classes = [AllowAny]
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabar yuborish",
+        operation_summary="Send message",
         operation_description=(
-            "Sayt tashrif buyuruvchilari uchun. Hech qanday autentifikatsiya talab qilinmaydi.\n\n"
-            "Maydonlar:\n"
-            "- `full_name` — Ism-familiya (majburiy)\n"
-            "- `email` — Email manzil (majburiy)\n"
-            "- `phone` — Telefon raqam (majburiy)\n"
-            "- `subject` — Mavzu (ixtiyoriy, default: general)\n"
-            "- `message` — Xabar matni (majburiy, min 10 belgi)"
+            "For website visitors. No authentication required.\n\n"
+            "Fields:\n"
+            "- `full_name` — Full name (required)\n"
+            "- `email` — Email address (required)\n"
+            "- `phone` — Phone number (required)\n"
+            "- `subject` — Subject (optional, default: general)\n"
+            "- `message` — Message text (required, min 10 characters)"
         ),
         request_body=ContactMessageCreateSerializer,
         responses={
             201: openapi.Response(
-                description="Xabar muvaffaqiyatli yuborildi",
+                description="Message sent successfully",
                 examples={
                     "application/json": {
-                        "detail": "Xabaringiz muvaffaqiyatli yuborildi. Tez orada javob beramiz.",
+                        "detail": "Your message has been sent successfully. We will reply shortly.",
                         "id": 1
                     }
                 }
             ),
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=["Contact - Public"],
     )
     def post(self, request):
         serializer = ContactMessageCreateSerializer(
-            data=request.data, 
+            data=request.data,
             context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
         msg = serializer.save()
         return Response(
             {
-                "detail": "Xabaringiz muvaffaqiyatli yuborildi. Tez orada javob beramiz.",
+                "detail": "Your message has been sent successfully. We will reply shortly.",
                 "id": msg.id
             },
             status=status.HTTP_201_CREATED
         )
 
 
-# ─── Admin: Xabarlar ro'yxati ────────────────────────────────────────────────
+# ─── Admin: Messages list ────────────────────────────────────────────────
 
 class ContactMessageListView(generics.ListAPIView):
-    """Admin uchun barcha xabarlar ro'yxati"""
+    """List all messages for admin"""
     permission_classes = [IsAuthenticated]
     serializer_class = ContactMessageListSerializer
     pagination_class = ContactPagination
@@ -106,21 +106,21 @@ class ContactMessageListView(generics.ListAPIView):
     search_fields = ['full_name', 'email', 'phone', 'message', 'subject']
     ordering_fields = ['created_at', 'status', 'subject']
     ordering = ['-created_at']
-    
+
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return ContactMessage.objects.none()
         return ContactMessage.objects.select_related('replied_by').all()
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabarlar ro'yxati (Admin)",
+        operation_summary="Messages list (Admin)",
         operation_description=(
-            "Faqat autentifikatsiyadan o'tgan adminlar uchun.\n\n"
-            "Filterlar:\n"
+            "For authenticated admins only.\n\n"
+            "Filters:\n"
             "- `?status=new|read|replied|archived`\n"
             "- `?subject=admission|general|complaint|suggestion|other`\n"
-            "- `?search=...` — ism, email, telefon, xabar bo'yicha qidirish\n"
-            "- `?ordering=-created_at` — tartiblash"
+            "- `?search=...` — search by name, email, phone, message\n"
+            "- `?ordering=-created_at` — sorting"
         ),
         manual_parameters=[STATUS_PARAM, SUBJECT_PARAM],
         responses={200: ContactMessageListSerializer(many=True)},
@@ -130,68 +130,68 @@ class ContactMessageListView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
-# ─── Admin: Xabar detali ─────────────────────────────────────────────────────
+# ─── Admin: Message detail ─────────────────────────────────────────────────────
 
 class ContactMessageDetailView(APIView):
-    """Admin uchun xabar detali, javob berish va status o'zgartirish"""
+    """Message detail, reply and status change for admin"""
     permission_classes = [IsAuthenticated]
-    
+
     def get_object(self, pk):
         return get_object_or_404(
-            ContactMessage.objects.select_related('replied_by'), 
+            ContactMessage.objects.select_related('replied_by'),
             pk=pk
         )
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabar detali (Admin)",
-        operation_description="Bitta xabarning to'liq ma'lumotlari. Avtomatik 'o'qilgan' deb belgilanadi.",
+        operation_summary="Message detail (Admin)",
+        operation_description="Full details of a single message. Automatically marked as 'read'.",
         responses={
             200: ContactMessageDetailSerializer,
-            404: openapi.Response(description="Topilmadi"),
+            404: openapi.Response(description="Not found"),
         },
         tags=["Contact - Admin"],
     )
     def get(self, request, pk):
         msg = self.get_object(pk)
-        msg.mark_as_read()  # Avtomatik o'qilgan deb belgilash
+        msg.mark_as_read()  # Automatically mark as read
         serializer = ContactMessageDetailSerializer(msg)
         return Response(serializer.data)
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabarni o'chirish (Admin)",
-        operation_description="Faqat admin. Xabarni butunlay o'chirish.",
+        operation_summary="Delete message (Admin)",
+        operation_description="Admin only. Permanently delete a message.",
         responses={
             200: openapi.Response(
-                description="Muvaffaqiyatli o'chirildi",
-                examples={"application/json": {"detail": "Xabar o'chirildi."}}
+                description="Deleted successfully",
+                examples={"application/json": {"detail": "Message deleted."}}
             ),
-            404: openapi.Response(description="Topilmadi"),
+            404: openapi.Response(description="Not found"),
         },
         tags=["Contact - Admin"],
     )
     def delete(self, request, pk):
         msg = self.get_object(pk)
         msg.delete()
-        return Response({"detail": "Xabar o'chirildi."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Message deleted."}, status=status.HTTP_200_OK)
 
 
-# ─── Admin: Xabarga javob berish ─────────────────────────────────────────────
+# ─── Admin: Reply to message ─────────────────────────────────────────────
 
 class ContactMessageReplyView(APIView):
-    """Admin xabarga javob beradi"""
+    """Admin replies to a message"""
     permission_classes = [IsAuthenticated]
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabarga javob berish (Admin)",
+        operation_summary="Reply to message (Admin)",
         operation_description=(
-            "Admin xabarga javob yozadi. Javob berilgandan so'ng status avtomatik "
-            "'replied' ga o'zgaradi."
+            "Admin writes a reply to a message. After replying, status automatically "
+            "changes to 'replied'."
         ),
         request_body=ContactMessageReplySerializer,
         responses={
             200: ContactMessageDetailSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            404: openapi.Response(description="Topilmadi"),
+            400: openapi.Response(description="Validation error"),
+            404: openapi.Response(description="Not found"),
         },
         tags=["Contact - Admin"],
     )
@@ -199,32 +199,32 @@ class ContactMessageReplyView(APIView):
         msg = get_object_or_404(ContactMessage, pk=pk)
         serializer = ContactMessageReplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         msg.mark_as_replied(
             reply_text=serializer.validated_data['reply'],
             user=request.user
         )
-        
+
         return Response(
             ContactMessageDetailSerializer(msg).data,
             status=status.HTTP_200_OK
         )
 
 
-# ─── Admin: Status o'zgartirish ──────────────────────────────────────────────
+# ─── Admin: Change status ──────────────────────────────────────────────
 
 class ContactMessageStatusView(APIView):
-    """Admin xabar statusini o'zgartiradi"""
+    """Admin changes message status"""
     permission_classes = [IsAuthenticated]
-    
+
     @swagger_auto_schema(
-        operation_summary="Status o'zgartirish (Admin)",
-        operation_description="Xabar statusini yangilash: new | read | replied | archived",
+        operation_summary="Change status (Admin)",
+        operation_description="Update message status: new | read | replied | archived",
         request_body=ContactMessageStatusSerializer,
         responses={
             200: ContactMessageDetailSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            404: openapi.Response(description="Topilmadi"),
+            400: openapi.Response(description="Validation error"),
+            404: openapi.Response(description="Not found"),
         },
         tags=["Contact - Admin"],
     )
@@ -232,28 +232,28 @@ class ContactMessageStatusView(APIView):
         msg = get_object_or_404(ContactMessage, pk=pk)
         serializer = ContactMessageStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         msg.status = serializer.validated_data['status']
         msg.save(update_fields=['status', 'updated_at'])
-        
+
         return Response(
             ContactMessageDetailSerializer(msg).data,
             status=status.HTTP_200_OK
         )
 
 
-# ─── Admin: Statistika ───────────────────────────────────────────────────────
+# ─── Admin: Statistics ───────────────────────────────────────────────────────
 
 class ContactMessageStatsView(APIView):
-    """Admin uchun xabarlar statistikasi"""
+    """Message statistics for admin"""
     permission_classes = [IsAuthenticated]
-    
+
     @swagger_auto_schema(
-        operation_summary="Xabarlar statistikasi (Admin)",
-        operation_description="Jami, yangi, o'qilgan, javob berilgan va arxivlangan xabarlar soni.",
+        operation_summary="Messages statistics (Admin)",
+        operation_description="Total, new, read, replied and archived message counts.",
         responses={
             200: openapi.Response(
-                description="Statistika",
+                description="Statistics",
                 examples={
                     "application/json": {
                         "total": 50,
@@ -276,19 +276,19 @@ class ContactMessageStatsView(APIView):
     )
     def get(self, request):
         from django.db.models import Count
-        
+
         qs = ContactMessage.objects.all()
-        
-        # Status bo'yicha
+
+        # By status
         status_counts = dict(
             qs.values_list('status').annotate(count=Count('id')).values_list('status', 'count')
         )
-        
-        # Mavzu bo'yicha
+
+        # By subject
         subject_counts = dict(
             qs.values_list('subject').annotate(count=Count('id')).values_list('subject', 'count')
         )
-        
+
         return Response({
             "total": qs.count(),
             "new": status_counts.get('new', 0),

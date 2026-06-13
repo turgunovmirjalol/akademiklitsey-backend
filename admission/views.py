@@ -1,9 +1,8 @@
-
 """
 Admission app views.
 
-Barcha write endpointlar multipart/form-data qabul qiladi.
-Har bir til maydoni alohida flat field sifatida yuboriladi.
+All write endpoints accept multipart/form-data.
+Each language field is sent as a separate flat field.
 """
 from rest_framework import generics, filters, status
 from rest_framework.response import Response
@@ -33,7 +32,7 @@ LANGS = ['uz', 'ru']
 
 
 def apply_lang_filter(serializer_data, lang):
-    """?lang= berilganda faqat o'sha tilni, yo'q bo'lsa uz fallback."""
+    """When ?lang= is given, show only that language, fallback to uz."""
     if not lang or lang not in LANGS:
         return serializer_data
 
@@ -52,11 +51,11 @@ def apply_lang_filter(serializer_data, lang):
         return [_filter(i) for i in serializer_data]
     return _filter(serializer_data)
 
-# ─── Swagger umumiy parametrlar ──────────────────────────────────────────────
+# ─── Swagger common parameters ──────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru (ixtiyoriy, ko'rsatilmasa barcha tillar)",
+    description="Filter response language: uz | ru (optional, if omitted all languages are shown)",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -69,10 +68,10 @@ LANG_PARAM = openapi.Parameter(
 
 class AdmissionCurrentView(APIView):
     """
-    Joriy faol qabul ma'lumotlari + fanlar + hujjatlar.
-    GET  — hamma uchun ochiq
-    POST — faqat admin (yangi qabul yaratish)
-    PUT  — faqat admin (joriy qabulni yangilash)
+    Current active admission info + subjects + documents.
+    GET  — open to everyone
+    POST — admin only (create new admission)
+    PUT  — admin only (update current admission)
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -85,16 +84,16 @@ class AdmissionCurrentView(APIView):
         return AdmissionInfo.objects.filter(is_active=True).first()
 
     @swagger_auto_schema(
-        operation_summary="Joriy qabul ma'lumotlari",
+        operation_summary="Current admission info",
         operation_description=(
-            "Faol qabul ma'lumotlari, imtihon fanlari va talab qilinadigan hujjatlarni qaytaradi.\n\n"
-            "?lang=uz — faqat o'zbek tilida\n"
-            "?lang=ru — faqat rus tilida"
+            "Returns active admission info, exam subjects and required documents.\n\n"
+            "?lang=uz — only in Uzbek\n"
+            "?lang=ru — only in Russian"
         ),
         manual_parameters=[LANG_PARAM],
         responses={
             200: openapi.Response(
-                description="Muvaffaqiyatli",
+                description="Success",
                 examples={
                     "application/json": {
                         "admission_info": {"id": 1, "academic_year": "2026-2027"},
@@ -103,7 +102,7 @@ class AdmissionCurrentView(APIView):
                     }
                 }
             ),
-            404: openapi.Response(description="Faol qabul topilmadi"),
+            404: openapi.Response(description="Active admission not found"),
         },
         tags=['Admission'],
     )
@@ -111,7 +110,7 @@ class AdmissionCurrentView(APIView):
         obj = self._get_active()
         if not obj:
             return Response(
-                {"detail": "Joriy qabul ma'lumotlari topilmadi."},
+                {"detail": "Current admission info not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
         lang = request.query_params.get('lang')
@@ -130,19 +129,19 @@ class AdmissionCurrentView(APIView):
         return Response(data)
 
     @swagger_auto_schema(
-        operation_summary="Yangi qabul ma'lumoti yaratish",
-        operation_description="Faqat admin. Faol qabul allaqachon mavjud bo'lsa xato qaytaradi.",
+        operation_summary="Create new admission info",
+        operation_description="Admin only. Returns error if active admission already exists.",
         request_body=AdmissionInfoWriteSerializer,
         responses={
             201: AdmissionInfoSerializer,
-            400: openapi.Response(description="Validatsiya xatosi yoki faol qabul allaqachon mavjud"),
+            400: openapi.Response(description="Validation error or active admission already exists"),
         },
         tags=['Admission'],
     )
     def post(self, request):
         if self._get_active():
             return Response(
-                {"detail": "Faol qabul ma'lumoti allaqachon mavjud. Yangilash uchun PUT ishlatilsin."},
+                {"detail": "An active admission already exists. Use PUT to update."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         serializer = AdmissionInfoWriteSerializer(data=request.data)
@@ -154,12 +153,12 @@ class AdmissionCurrentView(APIView):
         )
 
     @swagger_auto_schema(
-        operation_summary="Joriy qabul ma'lumotini yangilash",
-        operation_description="Faqat admin. Partial update qo'llab-quvvatlanadi.",
+        operation_summary="Update current admission info",
+        operation_description="Admin only. Supports partial update.",
         request_body=AdmissionInfoWriteSerializer,
         responses={
             200: AdmissionInfoSerializer,
-            404: openapi.Response(description="Faol qabul topilmadi"),
+            404: openapi.Response(description="Active admission not found"),
         },
         tags=['Admission'],
     )
@@ -167,7 +166,7 @@ class AdmissionCurrentView(APIView):
         obj = self._get_active()
         if not obj:
             return Response(
-                {"detail": "Joriy qabul ma'lumotlari topilmadi."},
+                {"detail": "Current admission info not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = AdmissionInfoWriteSerializer(obj, data=request.data, partial=True)
@@ -177,7 +176,7 @@ class AdmissionCurrentView(APIView):
 
 
 class AdmissionHistoryView(generics.ListAPIView):
-    """O'tgan yillar qabul tarixi (nofaol yozuvlar)."""
+    """Past years admission history (inactive records)."""
     permission_classes = [AllowAny]
     serializer_class = AdmissionInfoSerializer
     filter_backends = [filters.OrderingFilter]
@@ -187,8 +186,8 @@ class AdmissionHistoryView(generics.ListAPIView):
         return AdmissionInfo.objects.filter(is_active=False)
 
     @swagger_auto_schema(
-        operation_summary="Qabul tarixi",
-        operation_description="O'tgan yillar qabul ma'lumotlari (nofaol yozuvlar).",
+        operation_summary="Admission history",
+        operation_description="Past years admission info (inactive records).",
         tags=['Admission'],
     )
     def get(self, request, *args, **kwargs):
@@ -199,15 +198,41 @@ class AdmissionHistoryView(generics.ListAPIView):
 # AdmissionSubject
 # ─────────────────────────────────────────────────────────────────────────────
 
-class AdmissionSubjectsView(generics.ListCreateAPIView):
-    """Imtihon fanlari ro'yxati va yaratish."""
+SUBJECT_WRITE_PARAMS = [
+    openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Subject name (UZ)"),
+    openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Subject name (RU)"),
+    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Maximum score"),
+    openapi.Parameter('min_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Minimum score"),
+    openapi.Parameter('duration_minutes', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Exam duration (minutes)"),
+    openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+]
+
+
+class AdmissionSubjectListCreateView(generics.ListCreateAPIView):
+    """Subjects list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    filter_backends = [filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active']
+    search_fields = ['name_uz', 'name_ru', 'description_uz', 'description_ru']
+    ordering_fields = ['sort_order', 'name_uz', 'max_score', 'duration_minutes']
     ordering = ['sort_order']
 
     def get_queryset(self):
-        return AdmissionSubject.objects.all()
+        if getattr(self, 'swagger_fake_view', False):
+            return AdmissionSubject.objects.none()
+        qs = AdmissionSubject.objects.all()
+        is_admin = (
+            self.request.user.is_authenticated
+            and hasattr(self.request.user, 'is_admin_role')
+            and self.request.user.is_admin_role()
+        )
+        if not is_admin:
+            qs = qs.filter(is_active=True)
+        return qs
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -215,41 +240,36 @@ class AdmissionSubjectsView(generics.ListCreateAPIView):
         return AdmissionSubjectWriteSerializer if self.request.method == 'POST' else AdmissionSubjectSerializer
 
     @swagger_auto_schema(
-        operation_summary="Imtihon fanlari ro'yxati",
+        operation_summary="Exam subjects list",
+        operation_description=(
+            "Exam subjects for current admission.\n\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by name/description\n"
+            "- `?lang=uz|ru` — show only that language"
+        ),
         manual_parameters=[LANG_PARAM],
         responses={200: AdmissionSubjectSerializer(many=True)},
         tags=['Admission - Subjects'],
     )
     def get(self, request, *args, **kwargs):
         lang = request.query_params.get('lang')
-        qs = self.get_queryset()
+        qs = self.filter_queryset(self.get_queryset())
         data = AdmissionSubjectSerializer(qs, many=True, context={'request': request}).data
-        return Response(apply_lang_filter(data, lang))
+        return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi imtihon fani yaratish",
-        operation_description=(
-            "Har bir til uchun maydonlar alohida yuboriladi.\n\n"
-            "Kamida bitta tilda `subject_name_*` to'ldirilishi shart."
-        ),
-        manual_parameters=[
-            openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Fan nomi (UZ)"),
-            openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview'], default='test'),
-            openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=True, description="Maksimal ball"),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-        ],
+        operation_summary="Create new exam subject",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=SUBJECT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: AdmissionSubjectSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=['Admission - Subjects'],
     )
     def post(self, request, *args, **kwargs):
-        serializer = AdmissionSubjectWriteSerializer(data=request.data)
+        serializer = AdmissionSubjectWriteSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(
@@ -259,10 +279,14 @@ class AdmissionSubjectsView(generics.ListCreateAPIView):
 
 
 class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta imtihon fani — ko'rish, tahrirlash, o'chirish."""
+    """Single subject — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = AdmissionSubject.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return AdmissionSubject.objects.none()
+        return AdmissionSubject.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -272,9 +296,9 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
         return AdmissionSubjectSerializer
 
     @swagger_auto_schema(
-        operation_summary="Imtihon fani detali",
+        operation_summary="Subject detail",
         manual_parameters=[LANG_PARAM],
-        responses={200: AdmissionSubjectSerializer},
+        responses={200: AdmissionSubjectSerializer, 404: openapi.Response(description="Not found")},
         tags=['Admission - Subjects'],
     )
     def get(self, request, *args, **kwargs):
@@ -284,60 +308,45 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Imtihon fanini to'liq yangilash",
-        manual_parameters=[
-            openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Fan nomi (UZ)"),
-            openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview']),
-            openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=True),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update subject completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=SUBJECT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: AdmissionSubjectSerializer},
+        responses={200: AdmissionSubjectSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Admission - Subjects'],
     )
     def put(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = AdmissionSubjectWriteSerializer(obj, data=request.data)
+        serializer = AdmissionSubjectWriteSerializer(obj, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(AdmissionSubjectSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Imtihon fanini qisman yangilash",
-        manual_parameters=[
-            openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (UZ)"),
-            openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['test', 'essay', 'interview']),
-            openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update subject partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
+        manual_parameters=SUBJECT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: AdmissionSubjectSerializer},
+        responses={200: AdmissionSubjectSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Admission - Subjects'],
     )
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = AdmissionSubjectWriteSerializer(obj, data=request.data, partial=True)
+        serializer = AdmissionSubjectWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(AdmissionSubjectSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Imtihon fanini o'chirish",
-        responses={200: openapi.Response(description="O'chirildi")},
+        operation_summary="Delete subject",
+        responses={200: openapi.Response(description="Deleted")},
         tags=['Admission - Subjects'],
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        name = obj.subject_name_uz or obj.subject_name_ru or ''
-        obj.delete()
+        name = obj.name_uz or obj.name_ru or ''
         return Response(
-            {'id': obj.id, 'subject_name': name, 'detail': "Fan muvaffaqiyatli o'chirildi."},
+            {'id': obj.id, 'subject_name': name, 'detail': "Subject deleted successfully."},
             status=status.HTTP_200_OK,
         )
 
@@ -346,15 +355,39 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 # AdmissionDocument
 # ─────────────────────────────────────────────────────────────────────────────
 
-class AdmissionDocumentsView(generics.ListCreateAPIView):
-    """Talab qilinadigan hujjatlar ro'yxati va yaratish."""
+DOCUMENT_WRITE_PARAMS = [
+    openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Document name (UZ)"),
+    openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Document name (RU)"),
+    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="File"),
+    openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+]
+
+
+class AdmissionDocumentListCreateView(generics.ListCreateAPIView):
+    """Documents list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    filter_backends = [filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active']
+    search_fields = ['name_uz', 'name_ru', 'description_uz', 'description_ru']
+    ordering_fields = ['sort_order', 'name_uz']
     ordering = ['sort_order']
 
     def get_queryset(self):
-        return AdmissionDocument.objects.all()
+        if getattr(self, 'swagger_fake_view', False):
+            return AdmissionDocument.objects.none()
+        qs = AdmissionDocument.objects.all()
+        is_admin = (
+            self.request.user.is_authenticated
+            and hasattr(self.request.user, 'is_admin_role')
+            and self.request.user.is_admin_role()
+        )
+        if not is_admin:
+            qs = qs.filter(is_active=True)
+        return qs
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -362,42 +395,36 @@ class AdmissionDocumentsView(generics.ListCreateAPIView):
         return AdmissionDocumentWriteSerializer if self.request.method == 'POST' else AdmissionDocumentSerializer
 
     @swagger_auto_schema(
-        operation_summary="Hujjatlar ro'yxati",
+        operation_summary="Required documents list",
+        operation_description=(
+            "Required documents for admission.\n\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by name/description\n"
+            "- `?lang=uz|ru` — show only that language"
+        ),
         manual_parameters=[LANG_PARAM],
         responses={200: AdmissionDocumentSerializer(many=True)},
         tags=['Admission - Documents'],
     )
     def get(self, request, *args, **kwargs):
         lang = request.query_params.get('lang')
-        qs = self.get_queryset()
+        qs = self.filter_queryset(self.get_queryset())
         data = AdmissionDocumentSerializer(qs, many=True, context={'request': request}).data
-        return Response(apply_lang_filter(data, lang))
+        return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi hujjat yaratish",
-        operation_description=(
-            "Har bir til uchun maydonlar alohida yuboriladi. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `document_name_*` to'ldirilishi shart.\n\n"
-            "`document_file` — ixtiyoriy fayl (PDF, DOCX, JPG va h.k.)"
-        ),
-        manual_parameters=[
-            openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Hujjat nomi (UZ)"),
-            openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (RU)"),
-            openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
-            openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
-            openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX, JPG va h.k.)"),
-            openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True, description="Majburiy hujjatmi"),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-        ],
+        operation_summary="Create new document",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=DOCUMENT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: AdmissionDocumentSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=['Admission - Documents'],
     )
     def post(self, request, *args, **kwargs):
-        serializer = AdmissionDocumentWriteSerializer(data=request.data)
+        serializer = AdmissionDocumentWriteSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(
@@ -407,10 +434,14 @@ class AdmissionDocumentsView(generics.ListCreateAPIView):
 
 
 class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta hujjat — ko'rish, tahrirlash, o'chirish."""
+    """Single document — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = AdmissionDocument.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return AdmissionDocument.objects.none()
+        return AdmissionDocument.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -420,9 +451,9 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
         return AdmissionDocumentSerializer
 
     @swagger_auto_schema(
-        operation_summary="Hujjat detali",
+        operation_summary="Document detail",
         manual_parameters=[LANG_PARAM],
-        responses={200: AdmissionDocumentSerializer},
+        responses={200: AdmissionDocumentSerializer, 404: openapi.Response(description="Not found")},
         tags=['Admission - Documents'],
     )
     def get(self, request, *args, **kwargs):
@@ -432,62 +463,45 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Hujjatni to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
-        manual_parameters=[
-            openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Hujjat nomi (UZ)"),
-            openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (RU)"),
-            openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
-            openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
-            openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX va h.k.)"),
-            openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-        ],
+        operation_summary="Update document completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=DOCUMENT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: AdmissionDocumentSerializer},
+        responses={200: AdmissionDocumentSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Admission - Documents'],
     )
     def put(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = AdmissionDocumentWriteSerializer(obj, data=request.data)
+        serializer = AdmissionDocumentWriteSerializer(obj, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(AdmissionDocumentSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Hujjatni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
-        manual_parameters=[
-            openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (UZ)"),
-            openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Hujjat nomi (RU)"),
-            openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (UZ)"),
-            openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Izoh (RU)"),
-            openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Hujjat fayli (PDF, DOCX va h.k.)"),
-            openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update document partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
+        manual_parameters=DOCUMENT_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: AdmissionDocumentSerializer},
+        responses={200: AdmissionDocumentSerializer, 400: openapi.Response(description="Validation error")},
         tags=['Admission - Documents'],
     )
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = AdmissionDocumentWriteSerializer(obj, data=request.data, partial=True)
+        serializer = AdmissionDocumentWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(AdmissionDocumentSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Hujjatni o'chirish",
-        responses={200: openapi.Response(description="O'chirildi")},
+        operation_summary="Delete document",
+        responses={200: openapi.Response(description="Deleted")},
         tags=['Admission - Documents'],
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        name = obj.document_name_uz or obj.document_name_ru or ''
-        obj.delete()
+        name = obj.name_uz or obj.name_ru or ''
         return Response(
-            {'id': obj.id, 'document_name': name, 'detail': "Hujjat muvaffaqiyatli o'chirildi."},
+            {'id': obj.id, 'document_name': name, 'detail': "Document deleted successfully."},
             status=status.HTTP_200_OK,
         )
 
@@ -496,20 +510,39 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
 # FAQ
 # ─────────────────────────────────────────────────────────────────────────────
 
-class FAQListView(generics.ListCreateAPIView):
-    """FAQ ro'yxati va yaratish."""
+FAQ_WRITE_PARAMS = [
+    openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Question (UZ)"),
+    openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Question (RU)"),
+    openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Answer (UZ)"),
+    openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Answer (RU)"),
+    openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Category (admission, general, etc.)"),
+    openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+]
+
+
+class FAQListCreateView(generics.ListCreateAPIView):
+    """FAQ list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'is_active', 'is_featured']
-    search_fields = [
-        'question_uz', 'question_ru',
-        'answer_uz', 'answer_ru',
-    ]
+    filterset_fields = ['is_active', 'category']
+    search_fields = ['question_uz', 'question_ru', 'answer_uz', 'answer_ru']
+    ordering_fields = ['sort_order', 'created_at']
     ordering = ['sort_order']
 
     def get_queryset(self):
-        return FAQ.objects.all()
+        if getattr(self, 'swagger_fake_view', False):
+            return FAQ.objects.none()
+        qs = FAQ.objects.all()
+        is_admin = (
+            self.request.user.is_authenticated
+            and hasattr(self.request.user, 'is_admin_role')
+            and self.request.user.is_admin_role()
+        )
+        if not is_admin:
+            qs = qs.filter(is_active=True)
+        return qs
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -517,50 +550,37 @@ class FAQListView(generics.ListCreateAPIView):
         return FAQWriteSerializer if self.request.method == 'POST' else FAQSerializer
 
     @swagger_auto_schema(
-        operation_summary="FAQ ro'yxati",
+        operation_summary="FAQ list",
         operation_description=(
-            "Barcha FAQ lar. Filterlar:\n"
-            "- `?category=admission|general|education|payment`\n"
-            "- `?is_active=true|false`\n"
-            "- `?is_featured=true|false`\n"
-            "- `?search=...` — savol/javob bo'yicha qidirish\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjimani qaytarish"
+            "Frequently asked questions.\n\n"
+            "- `?category=...` — filter by category\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by question/answer\n"
+            "- `?lang=uz|ru` — show only that language"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: FAQSerializer(many=True)},
-        tags=['FAQ'],
+        tags=['Admission - FAQ'],
     )
     def get(self, request, *args, **kwargs):
         lang = request.query_params.get('lang')
         qs = self.filter_queryset(self.get_queryset())
         data = FAQSerializer(qs, many=True, context={'request': request}).data
-        return Response(apply_lang_filter(data, lang))
+        return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi FAQ yaratish",
-        operation_description=(
-            "Har bir til uchun savol va javob alohida maydonlarda yuboriladi.\n\n"
-            "Kamida bitta tilda `question_*` va `answer_*` to'ldirilishi shart."
-        ),
-        manual_parameters=[
-            openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Savol (UZ)"),
-            openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (RU)"),
-            openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Javob (UZ)"),
-            openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (RU)"),
-            openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['admission', 'general', 'education', 'payment'], default='general'),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-        ],
+        operation_summary="Create new FAQ",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=FAQ_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: FAQSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
-        tags=['FAQ'],
+        tags=['Admission - FAQ'],
     )
     def post(self, request, *args, **kwargs):
-        serializer = FAQWriteSerializer(data=request.data)
+        serializer = FAQWriteSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(
@@ -569,33 +589,15 @@ class FAQListView(generics.ListCreateAPIView):
         )
 
 
-class FAQFeaturedView(generics.ListAPIView):
-    """Bosh sahifa uchun featured FAQ lar."""
-    permission_classes = [AllowAny]
-    serializer_class = FAQSerializer
-
-    def get_queryset(self):
-        return FAQ.objects.filter(is_featured=True, is_active=True).order_by('sort_order')
-
-    @swagger_auto_schema(
-        operation_summary="Featured FAQ lar",
-        operation_description="Bosh sahifada ko'rsatiladigan FAQ lar (is_featured=True, is_active=True).",
-        manual_parameters=[LANG_PARAM],
-        responses={200: FAQSerializer(many=True)},
-        tags=['FAQ'],
-    )
-    def get(self, request, *args, **kwargs):
-        lang = request.query_params.get('lang')
-        qs = self.get_queryset()
-        data = FAQSerializer(qs, many=True, context={'request': request}).data
-        return Response(apply_lang_filter(data, lang))
-
-
 class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta FAQ — ko'rish, tahrirlash, o'chirish."""
+    """Single FAQ — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = FAQ.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return FAQ.objects.none()
+        return FAQ.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -605,10 +607,10 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
         return FAQSerializer
 
     @swagger_auto_schema(
-        operation_summary="FAQ detali",
+        operation_summary="FAQ detail",
         manual_parameters=[LANG_PARAM],
-        responses={200: FAQSerializer},
-        tags=['FAQ'],
+        responses={200: FAQSerializer, 404: openapi.Response(description="Not found")},
+        tags=['Admission - FAQ'],
     )
     def get(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -617,86 +619,85 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="FAQ ni to'liq yangilash",
-        manual_parameters=[
-            openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Savol (UZ)"),
-            openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (RU)"),
-            openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Javob (UZ)"),
-            openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (RU)"),
-            openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['admission', 'general', 'education', 'payment']),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update FAQ completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=FAQ_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: FAQSerializer},
-        tags=['FAQ'],
+        responses={200: FAQSerializer, 400: openapi.Response(description="Validation error")},
+        tags=['Admission - FAQ'],
     )
     def put(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = FAQWriteSerializer(obj, data=request.data)
+        serializer = FAQWriteSerializer(obj, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(FAQSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="FAQ ni qisman yangilash",
-        manual_parameters=[
-            openapi.Parameter('question_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (UZ)"),
-            openapi.Parameter('question_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Savol (RU)"),
-            openapi.Parameter('answer_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (UZ)"),
-            openapi.Parameter('answer_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Javob (RU)"),
-            openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['admission', 'general', 'education', 'payment']),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update FAQ partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
+        manual_parameters=FAQ_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: FAQSerializer},
-        tags=['FAQ'],
+        responses={200: FAQSerializer, 400: openapi.Response(description="Validation error")},
+        tags=['Admission - FAQ'],
     )
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = FAQWriteSerializer(obj, data=request.data, partial=True)
+        serializer = FAQWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(FAQSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="FAQ ni o'chirish",
-        responses={200: openapi.Response(description="O'chirildi")},
-        tags=['FAQ'],
+        operation_summary="Delete FAQ",
+        responses={200: openapi.Response(description="Deleted")},
+        tags=['Admission - FAQ'],
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
         q = obj.question_uz or obj.question_ru or ''
-        obj.delete()
         return Response(
-            {'id': obj.id, 'question': q[:80], 'detail': "FAQ muvaffaqiyatli o'chirildi."},
+            {'id': obj.id, 'question': q[:80], 'detail': "FAQ deleted successfully."},
             status=status.HTTP_200_OK,
         )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DarsJadvali
+# DarsJadvali — Class Schedule
 # ─────────────────────────────────────────────────────────────────────────────
 
-class DarsJadvaliListView(generics.ListCreateAPIView):
-    """
-    Dars jadvallari ro'yxati va yaratish.
-    GET  — hamma uchun ochiq (faqat faollar)
-    POST — faqat admin
-    """
+DARS_WRITE_PARAMS = [
+    openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
+    openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Schedule file (PDF, image)"),
+    openapi.Parameter('schedule_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Type: exam | lesson | other"),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+    openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
+]
+
+
+class DarsJadvaliListCreateView(generics.ListCreateAPIView):
+    """Class schedules list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    filter_backends = [filters.OrderingFilter]
-    ordering = ['sort_order']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active', 'schedule_type']
+    search_fields = ['title_uz', 'title_ru', 'description_uz', 'description_ru']
+    ordering_fields = ['sort_order', 'created_at']
+    ordering = ['sort_order', '-created_at']
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return DarsJadvali.objects.none()
         qs = DarsJadvali.objects.all()
-        if self.request.method == 'GET' and not (
-            self.request.user and self.request.user.is_staff
-        ):
+        is_admin = (
+            self.request.user.is_authenticated
+            and hasattr(self.request.user, 'is_admin_role')
+            and self.request.user.is_admin_role()
+        )
+        if not is_admin:
             qs = qs.filter(is_active=True)
         return qs
 
@@ -706,42 +707,36 @@ class DarsJadvaliListView(generics.ListCreateAPIView):
         return DarsJadvaliWriteSerializer if self.request.method == 'POST' else DarsJadvaliSerializer
 
     @swagger_auto_schema(
-        operation_summary="Dars jadvallari ro'yxati",
-        operation_description="Faol dars jadvallari ro'yxati. Admin uchun barcha yozuvlar.",
+        operation_summary="Class schedules list",
+        operation_description=(
+            "Class schedules (exam schedule, lesson schedule).\n\n"
+            "- `?schedule_type=exam|lesson|other`\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?lang=uz|ru`"
+        ),
         manual_parameters=[LANG_PARAM],
         responses={200: DarsJadvaliSerializer(many=True)},
-        tags=['Dars Jadvali'],
+        tags=['Admission - Schedule'],
     )
     def get(self, request, *args, **kwargs):
         lang = request.query_params.get('lang')
-        qs = self.get_queryset()
+        qs = self.filter_queryset(self.get_queryset())
         data = DarsJadvaliSerializer(qs, many=True, context={'request': request}).data
-        return Response(apply_lang_filter(data, lang))
+        return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi dars jadvali yaratish",
-        operation_description=(
-            "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` va `file` majburiy."
-        ),
-        manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ), masalan: 1-kurs"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="PDF/DOCX/rasm"),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-        ],
+        operation_summary="Create new schedule",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=DARS_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: DarsJadvaliSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
-        tags=['Dars Jadvali'],
+        tags=['Admission - Schedule'],
     )
     def post(self, request, *args, **kwargs):
-        serializer = DarsJadvaliWriteSerializer(data=request.data)
+        serializer = DarsJadvaliWriteSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(
@@ -751,12 +746,14 @@ class DarsJadvaliListView(generics.ListCreateAPIView):
 
 
 class DarsJadvaliDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Dars jadvali — ko'rish, tahrirlash, o'chirish.
-    """
+    """Single schedule — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = DarsJadvali.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return DarsJadvali.objects.none()
+        return DarsJadvali.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -766,10 +763,10 @@ class DarsJadvaliDetailView(generics.RetrieveUpdateDestroyAPIView):
         return DarsJadvaliSerializer
 
     @swagger_auto_schema(
-        operation_summary="Dars jadvali detali",
+        operation_summary="Schedule detail",
         manual_parameters=[LANG_PARAM],
-        responses={200: DarsJadvaliSerializer},
-        tags=['Dars Jadvali'],
+        responses={200: DarsJadvaliSerializer, 404: openapi.Response(description="Not found")},
+        tags=['Admission - Schedule'],
     )
     def get(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -778,61 +775,44 @@ class DarsJadvaliDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Dars jadvalini to'liq yangilash",
-        operation_description="Faqat admin.",
-        manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="PDF/DOCX/rasm"),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update schedule completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
+        manual_parameters=DARS_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: DarsJadvaliSerializer},
-        tags=['Dars Jadvali'],
+        responses={200: DarsJadvaliSerializer, 400: openapi.Response(description="Validation error")},
+        tags=['Admission - Schedule'],
     )
     def put(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = DarsJadvaliWriteSerializer(obj, data=request.data)
+        serializer = DarsJadvaliWriteSerializer(obj, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(DarsJadvaliSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Dars jadvalini qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar.",
-        manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif (RU)"),
-            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="PDF/DOCX/rasm"),
-            openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
-            openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
-        ],
+        operation_summary="Update schedule partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
+        manual_parameters=DARS_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: DarsJadvaliSerializer},
-        tags=['Dars Jadvali'],
+        responses={200: DarsJadvaliSerializer, 400: openapi.Response(description="Validation error")},
+        tags=['Admission - Schedule'],
     )
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
-        serializer = DarsJadvaliWriteSerializer(obj, data=request.data, partial=True)
+        serializer = DarsJadvaliWriteSerializer(obj, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         obj = serializer.save()
         return Response(DarsJadvaliSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Dars jadvalini o'chirish",
-        responses={200: openapi.Response(description="O'chirildi")},
-        tags=['Dars Jadvali'],
+        operation_summary="Delete schedule",
+        responses={200: openapi.Response(description="Deleted")},
+        tags=['Admission - Schedule'],
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
         title = obj.title_uz or obj.title_ru or ''
-        obj.delete()
         return Response(
-            {'id': obj.id, 'title': title, 'detail': "Dars jadvali muvaffaqiyatli o'chirildi."},
+            {'id': obj.id, 'title': title, 'detail': "Schedule deleted successfully."},
             status=status.HTTP_200_OK,
         )

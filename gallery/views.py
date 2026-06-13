@@ -27,11 +27,11 @@ from .serializers import (
     apply_lang_filter,
 )
 
-# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+# ─── Swagger parameters ─────────────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru",
+    description="Filter response language: uz | ru",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -51,7 +51,7 @@ class GalleryPagination(PageNumberPagination):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class GalleryAlbumListView(generics.ListCreateAPIView):
-    """Album ro'yxati va yaratish."""
+    """Album list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = GalleryPagination
@@ -65,7 +65,7 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
         if getattr(self, 'swagger_fake_view', False):
             return GalleryAlbum.objects.none()
         qs = GalleryAlbum.objects.all()
-        # Oddiy foydalanuvchi faqat faol albomlarni ko'radi
+        # Regular users only see active albums
         is_admin = (
             self.request.user.is_authenticated
             and hasattr(self.request.user, 'is_admin_role')
@@ -81,15 +81,15 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
         return GalleryAlbumWriteSerializer if self.request.method == 'POST' else GalleryAlbumSerializer
 
     @swagger_auto_schema(
-        operation_summary="Galereya albomlari ro'yxati",
+        operation_summary="Gallery albums list",
         operation_description=(
-            "Barcha galereya albomlari.\n\n"
-            "Filterlar:\n"
-            "- `?is_active=true|false` (admin uchun)\n"
+            "All gallery albums.\n\n"
+            "Filters:\n"
+            "- `?is_active=true|false` (for admin)\n"
             "- `?event_date=YYYY-MM-DD`\n"
-            "- `?search=...` — nom/tavsif bo'yicha\n"
+            "- `?search=...` — search by name/description\n"
             "- `?ordering=sort_order|-created_at|photos_count`\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: GalleryAlbumSerializer(many=True)},
@@ -106,28 +106,28 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi album yaratish",
+        operation_summary="Create new album",
         operation_description=(
-            "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Har bir til uchun maydonlar alohida yuboriladi.\n"
-            "Kamida bitta tilda `title_*` to'ldirilishi shart.\n\n"
-            "**Muhim:** Rasm yuklash uchun `Content-Type: multipart/form-data` ishlatiladi.\n"
-            "JSON bilan rasm yuklash mumkin emas."
+            "Admin only. Sent via **`multipart/form-data`**.\n\n"
+            "Fields for each language are sent separately.\n"
+            "At least one language `title_*` must be filled.\n\n"
+            "**Important:** Use `Content-Type: multipart/form-data` for image upload.\n"
+            "Cannot upload images with JSON."
         ),
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
-            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
+            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Event date (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: GalleryAlbumDetailSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=["Gallery - Albums"],
     )
@@ -142,7 +142,7 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
 
 
 class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta album — ko'rish (rasmlar bilan), tahrirlash, o'chirish."""
+    """Single album — view (with photos), edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     lookup_field = 'slug'
@@ -171,15 +171,15 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         if not obj.is_active and not is_admin:
             from rest_framework.exceptions import NotFound
-            raise NotFound("Bu albom topilmadi.")
+            raise NotFound("This album was not found.")
         self.check_object_permissions(self.request, obj)
         return obj
 
     @swagger_auto_schema(
-        operation_summary="Album detali (rasmlar bilan)",
-        operation_description="Bitta album va uning barcha rasmlari. ?lang= bilan til filtri.",
+        operation_summary="Album detail (with photos)",
+        operation_description="Single album with all its photos. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: GalleryAlbumDetailSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: GalleryAlbumDetailSerializer, 404: openapi.Response(description="Not found")},
         tags=["Gallery - Albums"],
     )
     def get(self, request, *args, **kwargs):
@@ -189,15 +189,15 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Albumni to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update album completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
-            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
+            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Event date (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
@@ -213,15 +213,15 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(GalleryAlbumDetailSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Albumni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update album partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (UZ)"),
-            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
-            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
+            openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album name (UZ)"),
+            openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Cover image"),
+            openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Event date (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
@@ -237,9 +237,9 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(GalleryAlbumDetailSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Albumni o'chirish",
-        operation_description="Faqat admin. Albom bilan birga barcha rasmlar ham o'chiriladi.",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete album",
+        operation_description="Admin only. All photos in the album are also deleted.",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Gallery - Albums"],
     )
     def delete(self, request, *args, **kwargs):
@@ -252,7 +252,7 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
                 'slug': self.kwargs['slug'],
                 'title': title,
                 'photos_deleted': photos_count,
-                'detail': "Album va barcha rasmlari muvaffaqiyatli o'chirildi.",
+                'detail': "Album and all its photos deleted successfully.",
             },
             status=status.HTTP_200_OK,
         )
@@ -264,8 +264,8 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class GalleryPhotoUploadView(APIView):
     """
-    Albomga rasm yuklash.
-    POST /gallery/albums/{slug}/photos/ — bitta rasm
+    Upload photo to album.
+    POST /gallery/albums/{slug}/photos/ — single photo
     """
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
@@ -278,28 +278,28 @@ class GalleryPhotoUploadView(APIView):
         return (last.sort_order + 1) if last else 1
 
     @swagger_auto_schema(
-        operation_summary="Albomga rasm yuklash",
+        operation_summary="Upload photo to album",
         operation_description=(
-            "Faqat admin. `multipart/form-data` orqali yuboriladi.\n\n"
-            "- `image` — majburiy\n"
-            "- `thumbnail` — ixtiyoriy (yo'q bo'lsa image ishlatiladi)\n"
-            "- `caption` — ixtiyoriy izoh\n"
-            "- `sort_order` — ixtiyoriy (avtomatik belgilanadi)"
+            "Admin only. Sent via `multipart/form-data`.\n\n"
+            "- `image` — required\n"
+            "- `thumbnail` — optional (uses image if not provided)\n"
+            "- `caption` — optional caption\n"
+            "- `sort_order` — optional (auto-assigned)"
         ),
         manual_parameters=[
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True,
-                              description="Asosiy rasm (JPEG, PNG, WEBP)"),
+                              description="Main image (JPEG, PNG, WEBP)"),
             openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False,
-                              description="Preview rasm (ixtiyoriy)"),
+                              description="Preview image (optional)"),
             openapi.Parameter('caption', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
-                              description="Rasm izohi"),
+                              description="Image caption"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: GalleryPhotoSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            404: openapi.Response(description="Album topilmadi"),
+            400: openapi.Response(description="Validation error"),
+            404: openapi.Response(description="Album not found"),
         },
         tags=["Gallery - Photos"],
     )
@@ -309,7 +309,7 @@ class GalleryPhotoUploadView(APIView):
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
-        # sort_order avtomatik
+        # auto sort_order
         if not data.get('sort_order'):
             data['sort_order'] = self._next_sort_order(album)
 
@@ -322,28 +322,28 @@ class GalleryPhotoUploadView(APIView):
 
 class GalleryPhotoBulkUploadView(APIView):
     """
-    Albomga bir vaqtda bir nechta rasm yuklash.
+    Upload multiple photos to an album at once.
     POST /gallery/albums/{slug}/photos/bulk/
     """
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
 
     @swagger_auto_schema(
-        operation_summary="Bir vaqtda bir nechta rasm yuklash",
+        operation_summary="Upload multiple photos at once",
         operation_description=(
-            "Faqat admin. `multipart/form-data` orqali yuboriladi.\n\n"
-            "- `images` — bir nechta rasm fayllari (`images[]` yoki `images`)\n"
-            "- `caption` — barcha rasmlarga umumiy izoh (ixtiyoriy)"
+            "Admin only. Sent via `multipart/form-data`.\n\n"
+            "- `images` — multiple image files (`images[]` or `images`)\n"
+            "- `caption` — common caption for all images (optional)"
         ),
         manual_parameters=[
             openapi.Parameter('images', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True,
-                              description="Bir nechta rasm fayllari"),
+                              description="Multiple image files"),
             openapi.Parameter('caption', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
         ],
         consumes=['multipart/form-data'],
         responses={
-            201: openapi.Response(description="Yuklangan rasmlar ro'yxati"),
-            400: openapi.Response(description="Validatsiya xatosi"),
+            201: openapi.Response(description="Uploaded photos list"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=["Gallery - Photos"],
     )
@@ -353,7 +353,7 @@ class GalleryPhotoBulkUploadView(APIView):
 
         if not images:
             return Response(
-                {'detail': "Kamida bitta rasm yuklash shart. 'images' maydonini to'ldiring."},
+                {'detail': "At least one image is required. Fill the 'images' field."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -382,7 +382,7 @@ class GalleryPhotoBulkUploadView(APIView):
 
 class GalleryPhotoDetailView(APIView):
     """
-    Bitta rasm — ko'rish, tahrirlash, o'chirish.
+    Single photo — view, edit, delete.
     GET/PATCH/DELETE /gallery/photos/{id}/
     """
     permission_classes = [IsAdminOrReadOnly]
@@ -392,8 +392,8 @@ class GalleryPhotoDetailView(APIView):
         return get_object_or_404(GalleryPhoto.objects.select_related('album'), pk=pk)
 
     @swagger_auto_schema(
-        operation_summary="Rasm detali",
-        responses={200: GalleryPhotoSerializer, 404: openapi.Response(description="Topilmadi")},
+        operation_summary="Photo detail",
+        responses={200: GalleryPhotoSerializer, 404: openapi.Response(description="Not found")},
         tags=["Gallery - Photos"],
     )
     def get(self, request, pk):
@@ -401,8 +401,8 @@ class GalleryPhotoDetailView(APIView):
         return Response(GalleryPhotoSerializer(photo, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Rasmni qisman yangilash",
-        operation_description="caption va sort_order ni yangilash. Rasm faylini almashtirish ham mumkin.",
+        operation_summary="Update photo partially",
+        operation_description="Update caption and sort_order. Can also replace image file.",
         manual_parameters=[
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False),
             openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False),
@@ -425,22 +425,22 @@ class GalleryPhotoDetailView(APIView):
             try:
                 photo.sort_order = int(request.data['sort_order'])
             except (ValueError, TypeError):
-                return Response({'sort_order': 'Butun son bo\'lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'sort_order': 'Must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
         photo.save()
         return Response(GalleryPhotoSerializer(photo, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Rasmni o'chirish",
-        operation_description="Faqat admin. Albomning photos_count avtomatik yangilanadi.",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete photo",
+        operation_description="Admin only. Album's photos_count is updated automatically.",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Gallery - Photos"],
     )
     def delete(self, request, pk):
         photo = self._get_photo(pk)
         album_slug = photo.album.slug
-        photo.delete()  # model.delete() photos_count ni avtomatik yangilaydi
+        photo.delete()  # model.delete() automatically updates photos_count
         return Response(
-            {'id': pk, 'album_slug': album_slug, 'detail': "Rasm muvaffaqiyatli o'chirildi."},
+            {'id': pk, 'album_slug': album_slug, 'detail': "Photo deleted successfully."},
             status=status.HTTP_200_OK,
         )
 
@@ -450,7 +450,7 @@ class GalleryPhotoDetailView(APIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UsefulLinkListView(generics.ListCreateAPIView):
-    """Foydali havolalar ro'yxati va yaratish."""
+    """Useful links list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -478,11 +478,11 @@ class UsefulLinkListView(generics.ListCreateAPIView):
         return UsefulLinkWriteSerializer if self.request.method == 'POST' else UsefulLinkSerializer
 
     @swagger_auto_schema(
-        operation_summary="Foydali havolalar ro'yxati",
+        operation_summary="Useful links list",
         operation_description=(
-            "Barcha foydali havolalar.\n\n"
-            "- `?is_active=true|false` (admin uchun)\n"
-            "- `?search=...` — nom bo'yicha qidirish"
+            "All useful links.\n\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by name"
         ),
         responses={200: UsefulLinkSerializer(many=True)},
         tags=["Gallery - Useful Links"],
@@ -493,20 +493,20 @@ class UsefulLinkListView(generics.ListCreateAPIView):
         return Response(data)
 
     @swagger_auto_schema(
-        operation_summary="Yangi foydali havola yaratish",
-        operation_description="Faqat admin. Logo yuklash uchun **`multipart/form-data`** ishlatiladi.",
+        operation_summary="Create new useful link",
+        operation_description="Admin only. Use **`multipart/form-data`** for logo upload.",
         manual_parameters=[
-            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Havola nomi"),
-            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="URL manzil (https://...)"),
-            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo rasmi"),
-            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif"),
+            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Link name"),
+            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="URL address (https://...)"),
+            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo image"),
+            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: UsefulLinkSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=["Gallery - Useful Links"],
     )
@@ -521,7 +521,7 @@ class UsefulLinkListView(generics.ListCreateAPIView):
 
 
 class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta foydali havola — ko'rish, tahrirlash, o'chirish."""
+    """Single useful link — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -538,8 +538,8 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
         return UsefulLinkSerializer
 
     @swagger_auto_schema(
-        operation_summary="Foydali havola detali",
-        responses={200: UsefulLinkSerializer, 404: openapi.Response(description="Topilmadi")},
+        operation_summary="Useful link detail",
+        responses={200: UsefulLinkSerializer, 404: openapi.Response(description="Not found")},
         tags=["Gallery - Useful Links"],
     )
     def get(self, request, *args, **kwargs):
@@ -547,13 +547,13 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(UsefulLinkSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Foydali havolani to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update useful link completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Havola nomi"),
-            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="URL manzil (https://...)"),
-            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo rasmi"),
-            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif"),
+            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Link name"),
+            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="URL address (https://...)"),
+            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo image"),
+            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
         ],
@@ -569,12 +569,12 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(UsefulLinkSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Foydali havolani qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update useful link partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Havola nomi"),
-            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="URL manzil"),
-            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo rasmi"),
+            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Link name"),
+            openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="URL address"),
+            openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo image"),
             openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
@@ -591,34 +591,34 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(UsefulLinkSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Foydali havolani o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete useful link",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Gallery - Useful Links"],
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        data = {'id': obj.pk, 'name': obj.name, 'detail': "Havola muvaffaqiyatli o'chirildi."}
+        data = {'id': obj.pk, 'name': obj.name, 'detail': "Link deleted successfully."}
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# InfrastructureItem — Litseyning moddiy-texnik bazasi
+# InfrastructureItem — Lyceum's material and technical resources
 # ─────────────────────────────────────────────────────────────────────────────
 
 INFRA_WRITE_PARAMS = [
-    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-    openapi.Parameter('image',      openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Rasm"),
+    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (UZ)"),
+    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('image',      openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Image"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
     openapi.Parameter('is_active',  openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
 class InfrastructureListCreateView(generics.ListCreateAPIView):
-    """Moddiy-texnik baza elementlari ro'yxati va yaratish."""
+    """Infrastructure items list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = GalleryPagination
@@ -647,14 +647,14 @@ class InfrastructureListCreateView(generics.ListCreateAPIView):
         return InfrastructureItemWriteSerializer if self.request.method == 'POST' else InfrastructureItemSerializer
 
     @swagger_auto_schema(
-        operation_summary="Moddiy-texnik baza ro'yxati",
+        operation_summary="Infrastructure list",
         operation_description=(
-            "Litseyning moddiy-texnik bazasi elementlari (partalari, kompyuterlari va boshqalar).\n\n"
-            "Filterlar:\n"
-            "- `?is_active=true|false` (admin uchun)\n"
-            "- `?search=...` — nom/tavsif bo'yicha\n"
+            "Lyceum's infrastructure items (desks, computers, etc.).\n\n"
+            "Filters:\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by name/description\n"
             "- `?ordering=sort_order|-created_at`\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: InfrastructureItemSerializer(many=True)},
@@ -671,17 +671,17 @@ class InfrastructureListCreateView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi element yaratish",
+        operation_summary="Create new item",
         operation_description=(
-            "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` va `image` majburiy."
+            "Admin only. Sent via **`multipart/form-data`**.\n\n"
+            "At least one language `title_*` and `image` are required."
         ),
         manual_parameters=INFRA_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: InfrastructureItemSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            403: openapi.Response(description="Ruxsat yo'q"),
+            400: openapi.Response(description="Validation error"),
+            403: openapi.Response(description="Permission denied"),
         },
         tags=["Infrastructure"],
     )
@@ -696,7 +696,7 @@ class InfrastructureListCreateView(generics.ListCreateAPIView):
 
 
 class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta element — ko'rish, tahrirlash, o'chirish."""
+    """Single item — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -713,10 +713,10 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         return InfrastructureItemSerializer
 
     @swagger_auto_schema(
-        operation_summary="Element detali",
-        operation_description="Bitta moddiy-texnik baza elementi. ?lang= bilan til filtri.",
+        operation_summary="Item detail",
+        operation_description="Single infrastructure item. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: InfrastructureItemSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: InfrastructureItemSerializer, 404: openapi.Response(description="Not found")},
         tags=["Infrastructure"],
     )
     def get(self, request, *args, **kwargs):
@@ -726,11 +726,11 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Elementni to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update item completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
         manual_parameters=INFRA_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: InfrastructureItemSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: InfrastructureItemSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Infrastructure"],
     )
     def put(self, request, *args, **kwargs):
@@ -741,11 +741,11 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(InfrastructureItemSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Elementni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update item partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=INFRA_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: InfrastructureItemSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: InfrastructureItemSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Infrastructure"],
     )
     def patch(self, request, *args, **kwargs):
@@ -756,8 +756,8 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(InfrastructureItemSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Elementni o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete item",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Infrastructure"],
     )
     def delete(self, request, *args, **kwargs):
@@ -765,30 +765,30 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         data = {
             'id': obj.pk,
             'title': obj.title_uz or obj.title_ru or '',
-            'detail': "Element muvaffaqiyatli o'chirildi.",
+            'detail': "Item deleted successfully.",
         }
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Video — Video lavhalar
+# Video — Video clips
 # ─────────────────────────────────────────────────────────────────────────────
 
 VIDEO_WRITE_PARAMS = [
-    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
-    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-    openapi.Parameter('video_file', openapi.IN_FORM, type=openapi.TYPE_FILE,    required=True,  description="Video fayl (mp4, webm, avi va boshqalar)"),
-    openapi.Parameter('thumbnail',  openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Muqova rasmi (ixtiyoriy)"),
+    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (UZ)"),
+    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
+    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('video_file', openapi.IN_FORM, type=openapi.TYPE_FILE,    required=True,  description="Video file (mp4, webm, avi, etc.)"),
+    openapi.Parameter('thumbnail',  openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Cover image (optional)"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
     openapi.Parameter('is_active',  openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
 class VideoListCreateView(generics.ListCreateAPIView):
-    """Video lavhalar ro'yxati va yaratish."""
+    """Video clips list and create."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = GalleryPagination
@@ -817,14 +817,14 @@ class VideoListCreateView(generics.ListCreateAPIView):
         return VideoWriteSerializer if self.request.method == 'POST' else VideoSerializer
 
     @swagger_auto_schema(
-        operation_summary="Video lavhalar ro'yxati",
+        operation_summary="Video list",
         operation_description=(
-            "Barcha video lavhalar.\n\n"
-            "Filterlar:\n"
-            "- `?is_active=true|false` (admin uchun)\n"
-            "- `?search=...` — sarlavha/tavsif bo'yicha\n"
+            "All video clips.\n\n"
+            "Filters:\n"
+            "- `?is_active=true|false` (for admin)\n"
+            "- `?search=...` — search by title/description\n"
             "- `?ordering=sort_order|-created_at`\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: VideoSerializer(many=True)},
@@ -841,17 +841,17 @@ class VideoListCreateView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi video yaratish",
+        operation_summary="Create new video",
         operation_description=(
-            "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` va `video_url` majburiy."
+            "Admin only. Sent via **`multipart/form-data`**.\n\n"
+            "At least one language `title_*` and `video_url` are required."
         ),
         manual_parameters=VIDEO_WRITE_PARAMS,
         consumes=['multipart/form-data'],
         responses={
             201: VideoSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            403: openapi.Response(description="Ruxsat yo'q"),
+            400: openapi.Response(description="Validation error"),
+            403: openapi.Response(description="Permission denied"),
         },
         tags=["Gallery - Videos"],
     )
@@ -866,7 +866,7 @@ class VideoListCreateView(generics.ListCreateAPIView):
 
 
 class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Bitta video — ko'rish, tahrirlash, o'chirish."""
+    """Single video — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -883,10 +883,10 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return VideoSerializer
 
     @swagger_auto_schema(
-        operation_summary="Video detali",
-        operation_description="Bitta video lavha. ?lang= bilan til filtri.",
+        operation_summary="Video detail",
+        operation_description="Single video clip. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: VideoSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: VideoSerializer, 404: openapi.Response(description="Not found")},
         tags=["Gallery - Videos"],
     )
     def get(self, request, *args, **kwargs):
@@ -896,11 +896,11 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Videoni to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update video completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
         manual_parameters=VIDEO_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: VideoSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: VideoSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Gallery - Videos"],
     )
     def put(self, request, *args, **kwargs):
@@ -911,11 +911,11 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(VideoSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Videoni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update video partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=VIDEO_WRITE_PARAMS,
         consumes=['multipart/form-data'],
-        responses={200: VideoSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: VideoSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Gallery - Videos"],
     )
     def patch(self, request, *args, **kwargs):
@@ -926,8 +926,8 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(VideoSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="Videoni o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete video",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Gallery - Videos"],
     )
     def delete(self, request, *args, **kwargs):
@@ -935,7 +935,7 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         data = {
             'id': obj.pk,
             'title': obj.title_uz or obj.title_ru or '',
-            'detail': "Video muvaffaqiyatli o'chirildi.",
+            'detail': "Video deleted successfully.",
         }
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)

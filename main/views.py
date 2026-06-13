@@ -16,11 +16,11 @@ from .serializers import (
     apply_lang_filter,
 )
 
-# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+# ─── Swagger parameters ─────────────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru",
+    description="Filter response language: uz | ru",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -33,8 +33,8 @@ LANG_PARAM = openapi.Parameter(
 
 class StatisticListCreateView(APIView):
     """
-    GET  — barcha statistikalar (hamma ko'rishi mumkin)
-    POST — yangi statistika yaratish (faqat admin)
+    GET  — all statistics (everyone can view)
+    POST — create new statistic (admin only)
     """
     parser_classes = [JSONParser]
 
@@ -44,10 +44,10 @@ class StatisticListCreateView(APIView):
         return [IsAdminUser()]
 
     @swagger_auto_schema(
-        operation_summary="Statistikalar ro'yxati",
+        operation_summary="Statistics list",
         operation_description=(
-            "Bosh sahifa uchun barcha statistikalar.\n\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi label"
+            "All statistics for the homepage.\n\n"
+            "- `?lang=uz|ru` — show only that language label"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: StatisticSerializer(many=True)},
@@ -60,18 +60,18 @@ class StatisticListCreateView(APIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi statistika yaratish",
+        operation_summary="Create new statistic",
         operation_description=(
-            "Faqat admin.\n\n"
-            "Har bir til uchun label alohida maydon.\n"
-            "Kamida bitta tilda `label_*` to'ldirilishi shart.\n\n"
-            "`key` — unikal texnik identifikator (masalan: `students_count`)"
+            "Admin only.\n\n"
+            "Label for each language is a separate field.\n"
+            "At least one language `label_*` must be filled.\n\n"
+            "`key` — unique technical identifier (e.g.: `students_count`)"
         ),
         request_body=StatisticWriteSerializer,
         responses={
             201: StatisticSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            403: openapi.Response(description="Ruxsat yo'q"),
+            400: openapi.Response(description="Validation error"),
+            403: openapi.Response(description="Permission denied"),
         },
         tags=["Main - Statistics"],
     )
@@ -84,10 +84,10 @@ class StatisticListCreateView(APIView):
 
 class StatisticDetailView(APIView):
     """
-    GET    — bitta statistika (hamma ko'rishi mumkin)
-    PUT    — to'liq yangilash (faqat admin)
-    PATCH  — qisman yangilash (faqat admin)
-    DELETE — o'chirish (faqat admin)
+    GET    — single statistic (everyone can view)
+    PUT    — full update (admin only)
+    PATCH  — partial update (admin only)
+    DELETE — delete (admin only)
     """
     parser_classes = [JSONParser]
 
@@ -100,9 +100,9 @@ class StatisticDetailView(APIView):
         return get_object_or_404(Statistic, pk=pk)
 
     @swagger_auto_schema(
-        operation_summary="Statistika detali",
+        operation_summary="Statistic detail",
         manual_parameters=[LANG_PARAM],
-        responses={200: StatisticSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: StatisticSerializer, 404: openapi.Response(description="Not found")},
         tags=["Main - Statistics"],
     )
     def get(self, request, pk):
@@ -112,9 +112,9 @@ class StatisticDetailView(APIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="Statistikani to'liq yangilash",
+        operation_summary="Update statistic completely",
         request_body=StatisticWriteSerializer,
-        responses={200: StatisticSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: StatisticSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Main - Statistics"],
     )
     def put(self, request, pk):
@@ -125,10 +125,10 @@ class StatisticDetailView(APIView):
         return Response(StatisticSerializer(stat).data)
 
     @swagger_auto_schema(
-        operation_summary="Statistikani qisman yangilash",
-        operation_description="Faqat o'zgartirilishi kerak bo'lgan maydonlar yuboriladi.",
+        operation_summary="Update statistic partially",
+        operation_description="Only fields that need to be changed are sent.",
         request_body=StatisticWriteSerializer,
-        responses={200: StatisticSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: StatisticSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Main - Statistics"],
     )
     def patch(self, request, pk):
@@ -139,8 +139,8 @@ class StatisticDetailView(APIView):
         return Response(StatisticSerializer(stat).data)
 
     @swagger_auto_schema(
-        operation_summary="Statistikani o'chirish",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete statistic",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Main - Statistics"],
     )
     def delete(self, request, pk):
@@ -148,7 +148,7 @@ class StatisticDetailView(APIView):
         data = {
             'id': stat.pk,
             'key': stat.key,
-            'detail': "Statistika muvaffaqiyatli o'chirildi.",
+            'detail': "Statistic deleted successfully.",
         }
         stat.delete()
         return Response(data, status=status.HTTP_200_OK)
@@ -156,16 +156,16 @@ class StatisticDetailView(APIView):
 
 class StatisticBulkUpdateView(APIView):
     """
-    POST /statistics/bulk-update/ — bir nechta statistikani bir vaqtda yangilash.
-    Faqat value yangilanadi (key orqali topiladi).
+    POST /statistics/bulk-update/ — update multiple statistics at once.
+    Only value is updated (found by key).
     """
     permission_classes = [IsAdminUser]
 
     @swagger_auto_schema(
-        operation_summary="Bir nechta statistikani bir vaqtda yangilash",
+        operation_summary="Update multiple statistics at once",
         operation_description=(
-            "Faqat admin. Faqat `value` yangilanadi.\n\n"
-            "Misol:\n"
+            "Admin only. Only `value` is updated.\n\n"
+            "Example:\n"
             "```json\n"
             '{"updates": [{"key": "students_count", "value": 1200}, {"key": "teachers_count", "value": 85}]}\n'
             "```"
@@ -173,7 +173,7 @@ class StatisticBulkUpdateView(APIView):
         request_body=StatisticBulkUpdateSerializer,
         responses={
             200: openapi.Response(
-                description="Yangilangan statistikalar",
+                description="Updated statistics",
                 examples={
                     "application/json": {
                         "updated": 2,
@@ -182,7 +182,7 @@ class StatisticBulkUpdateView(APIView):
                     }
                 }
             ),
-            400: openapi.Response(description="Validatsiya xatosi"),
+            400: openapi.Response(description="Validation error"),
         },
         tags=["Main - Statistics"],
     )

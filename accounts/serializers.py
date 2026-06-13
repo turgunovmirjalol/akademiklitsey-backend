@@ -26,35 +26,35 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    """Parolni o'zgartirish uchun serializer"""
+    """Serializer for changing password"""
     old_password = serializers.CharField(
         required=True,
         write_only=True,
         style={'input_type': 'password'},
-        help_text="Joriy parolingizni kiriting"
+        help_text="Enter your current password"
     )
     new_password = serializers.CharField(
         required=True,
         write_only=True,
         style={'input_type': 'password'},
-        help_text="Yangi parolingizni kiriting"
+        help_text="Enter your new password"
     )
     confirm_password = serializers.CharField(
         required=True,
         write_only=True,
         style={'input_type': 'password'},
-        help_text="Yangi parolingizni takrorlang"
+        help_text="Confirm your new password"
     )
 
     def validate_old_password(self, value):
-        """Eski parolni tekshirish"""
+        """Validate old password"""
         user = self.context['request'].user
         if not user.check_password(value):
-            raise serializers.ValidationError("Joriy parol noto'g'ri kiritilgan.")
+            raise serializers.ValidationError("Current password is incorrect.")
         return value
 
     def validate_new_password(self, value):
-        """Yangi parolni Django validatorlari bilan tekshirish"""
+        """Validate new password with Django validators"""
         user = self.context['request'].user
         try:
             validate_password(value, user)
@@ -63,22 +63,22 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        """Yangi parol va tasdiqlash parolini solishtirish"""
+        """Compare new password and confirmation"""
         if attrs['new_password'] != attrs['confirm_password']:
             raise serializers.ValidationError({
-                'confirm_password': "Yangi parol va tasdiqlash paroli bir xil bo'lishi kerak."
+                'confirm_password': "New password and confirmation do not match."
             })
-        
-        # Yangi parol eski parol bilan bir xil bo'lmasligi kerak
+
+        # New password must be different from old password
         if attrs['old_password'] == attrs['new_password']:
             raise serializers.ValidationError({
-                'new_password': "Yangi parol eski paroldan farqli bo'lishi kerak."
+                'new_password': "New password must be different from the old password."
             })
-        
+
         return attrs
 
     def save(self, **kwargs):
-        """Yangi parolni saqlash"""
+        """Save new password"""
         user = self.context['request'].user
         user.set_password(self.validated_data['new_password'])
         user.save()

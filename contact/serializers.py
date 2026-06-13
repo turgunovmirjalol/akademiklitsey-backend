@@ -3,59 +3,59 @@ from .models import ContactMessage
 
 
 class ContactMessageCreateSerializer(serializers.Serializer):
-    """Xabar yuborish uchun serializer (foydalanuvchilar uchun)"""
-    
+    """Serializer for sending messages (for users)"""
+
     full_name = serializers.CharField(
         max_length=200,
         required=True,
-        help_text="To'liq ism-familiya"
+        help_text="Full name"
     )
     email = serializers.EmailField(
         required=True,
-        help_text="Email manzil"
+        help_text="Email address"
     )
     phone = serializers.CharField(
         max_length=20,
         required=True,
-        help_text="Telefon raqam (+998 90 123 45 67)"
+        help_text="Phone number (+998 90 123 45 67)"
     )
     subject = serializers.ChoiceField(
         choices=ContactMessage.Subject.choices,
         default=ContactMessage.Subject.GENERAL,
-        help_text="Xabar mavzusi"
+        help_text="Message subject"
     )
     message = serializers.CharField(
         style={'base_template': 'textarea.html'},
-        help_text="Xabar matni"
+        help_text="Message text"
     )
-    
+
     def validate_phone(self, value):
-        """Telefon raqamni tekshirish"""
+        """Validate phone number"""
         import re
-        # Faqat raqamlar va + belgisini qoldirish
+        # Keep only digits and + sign
         cleaned = re.sub(r'[^\d+]', '', value)
         if len(cleaned) < 9:
-            raise serializers.ValidationError("Telefon raqam juda qisqa")
+            raise serializers.ValidationError("Phone number is too short")
         return value
-    
+
     def validate_message(self, value):
-        """Xabar uzunligini tekshirish"""
+        """Validate message length"""
         if len(value.strip()) < 10:
-            raise serializers.ValidationError("Xabar kamida 10 ta belgidan iborat bo'lishi kerak")
+            raise serializers.ValidationError("Message must be at least 10 characters long")
         return value.strip()
-    
+
     def create(self, validated_data):
-        # IP va user agent ni request dan olish
+        # Get IP and user agent from request
         request = self.context.get('request')
         if request:
             validated_data['ip_address'] = self.get_client_ip(request)
             validated_data['user_agent'] = request.META.get('HTTP_USER_AGENT', '')[:500]
-        
+
         return ContactMessage.objects.create(**validated_data)
-    
+
     @staticmethod
     def get_client_ip(request):
-        """Foydalanuvchi IP manzilini olish"""
+        """Get client IP address"""
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0]
@@ -65,13 +65,13 @@ class ContactMessageCreateSerializer(serializers.Serializer):
 
 
 class ContactMessageListSerializer(serializers.ModelSerializer):
-    """Admin uchun xabarlar ro'yxati"""
-    
+    """Messages list serializer for admin"""
+
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     subject_display = serializers.CharField(source='get_subject_display', read_only=True)
     is_new = serializers.BooleanField(read_only=True)
     response_time = serializers.FloatField(read_only=True)
-    
+
     class Meta:
         model = ContactMessage
         fields = [
@@ -83,14 +83,14 @@ class ContactMessageListSerializer(serializers.ModelSerializer):
 
 
 class ContactMessageDetailSerializer(serializers.ModelSerializer):
-    """Admin uchun xabar detali"""
-    
+    """Message detail serializer for admin"""
+
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     subject_display = serializers.CharField(source='get_subject_display', read_only=True)
     replied_by_name = serializers.SerializerMethodField()
     is_new = serializers.BooleanField(read_only=True)
     response_time = serializers.FloatField(read_only=True)
-    
+
     class Meta:
         model = ContactMessage
         fields = [
@@ -103,7 +103,7 @@ class ContactMessageDetailSerializer(serializers.ModelSerializer):
             'id', 'created_at', 'updated_at', 'read_at', 'replied_at',
             'replied_by', 'ip_address', 'user_agent'
         ]
-    
+
     def get_replied_by_name(self, obj):
         if obj.replied_by:
             return f"{obj.replied_by.first_name} {obj.replied_by.last_name}".strip() or obj.replied_by.username
@@ -111,25 +111,25 @@ class ContactMessageDetailSerializer(serializers.ModelSerializer):
 
 
 class ContactMessageReplySerializer(serializers.Serializer):
-    """Xabarga javob berish uchun"""
-    
+    """Serializer for replying to messages"""
+
     reply = serializers.CharField(
         required=True,
         style={'base_template': 'textarea.html'},
-        help_text="Javob matni"
+        help_text="Reply text"
     )
-    
+
     def validate_reply(self, value):
         if len(value.strip()) < 10:
-            raise serializers.ValidationError("Javob kamida 10 ta belgidan iborat bo'lishi kerak")
+            raise serializers.ValidationError("Reply must be at least 10 characters long")
         return value.strip()
 
 
 class ContactMessageStatusSerializer(serializers.Serializer):
-    """Xabar statusini o'zgartirish uchun"""
-    
+    """Serializer for changing message status"""
+
     status = serializers.ChoiceField(
         choices=ContactMessage.Status.choices,
         required=True,
-        help_text="Yangi status"
+        help_text="New status"
     )

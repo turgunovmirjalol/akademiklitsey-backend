@@ -13,11 +13,11 @@ from accounts.permissions import IsAdminOrReadOnly
 from .models import Circle
 from .serializers import CircleSerializer, CircleWriteSerializer
 
-# ─── Swagger parametrlar ─────────────────────────────────────────────────────
+# ─── Swagger parameters ─────────────────────────────────────────────────────
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | ru",
+    description="Filter response language: uz | ru",
     type=openapi.TYPE_STRING,
     enum=['uz', 'ru'],
     required=False,
@@ -25,7 +25,7 @@ LANG_PARAM = openapi.Parameter(
 
 ALL_PARAM = openapi.Parameter(
     'all', openapi.IN_QUERY,
-    description="true — barcha to'garaklar (admin uchun, nofaollar ham)",
+    description="true — all circles (for admin, including inactive)",
     type=openapi.TYPE_BOOLEAN,
     required=False,
 )
@@ -86,15 +86,15 @@ class CircleListView(generics.ListCreateAPIView):
         return CircleWriteSerializer if self.request.method == 'POST' else CircleSerializer
 
     @swagger_auto_schema(
-        operation_summary="To'garaklar ro'yxati",
+        operation_summary="Circles list",
         operation_description=(
-            "Faol to'garaklar ro'yxati.\n\n"
-            "Filterlar:\n"
+            "Active circles list.\n\n"
+            "Filters:\n"
             "- `?category=sport|art|science|language|tech|other`\n"
-            "- `?is_active=true|false` (faqat admin)\n"
-            "- `?all=true` — nofaollar ham (faqat admin)\n"
-            "- `?search=...` — nom/tavsif bo'yicha qidirish\n"
-            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
+            "- `?is_active=true|false` (admin only)\n"
+            "- `?all=true` — include inactive (admin only)\n"
+            "- `?search=...` — search by name/description\n"
+            "- `?lang=uz|ru` — show only that language translation"
         ),
         manual_parameters=[LANG_PARAM, ALL_PARAM],
         responses={200: CircleSerializer(many=True)},
@@ -111,33 +111,33 @@ class CircleListView(generics.ListCreateAPIView):
         return Response(apply_lang_filter(list(data), lang))
 
     @swagger_auto_schema(
-        operation_summary="Yangi to'garak yaratish",
+        operation_summary="Create new circle",
         operation_description=(
-            "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Har bir til uchun maydonlar alohida yuboriladi.\n"
-            "Kamida bitta tilda `name_*` to'ldirilishi shart."
+            "Admin only. Sent via **`multipart/form-data`**.\n\n"
+            "Fields for each language are sent separately.\n"
+            "At least one language `name_*` must be filled."
         ),
         manual_parameters=[
-            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
+            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Name (UZ)"),
+            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (UZ)"),
+            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (RU)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other'], default='other'),
-            openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="O'qituvchi ID"),
+            openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Teacher ID"),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('current_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
             openapi.Parameter('room', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="To'garak rasmi"),
+            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Circle photo"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
         ],
         consumes=['multipart/form-data'],
         responses={
             201: CircleSerializer,
-            400: openapi.Response(description="Validatsiya xatosi"),
-            403: openapi.Response(description="Ruxsat yo'q"),
+            400: openapi.Response(description="Validation error"),
+            403: openapi.Response(description="Permission denied"),
         },
         tags=["Activities - Circles"],
     )
@@ -180,15 +180,15 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
                 and self.request.user.is_admin_role()
             )
             if not is_admin:
-                raise NotFound("Bu to'garak topilmadi.")
+                raise NotFound("This circle was not found.")
         self.check_object_permissions(self.request, obj)
         return obj
 
     @swagger_auto_schema(
-        operation_summary="To'garak detali",
-        operation_description="Bitta to'garak ma'lumotlari. ?lang= bilan til filtri.",
+        operation_summary="Circle detail",
+        operation_description="Single circle details. Use ?lang= for language filter.",
         manual_parameters=[LANG_PARAM],
-        responses={200: CircleSerializer, 404: openapi.Response(description="Topilmadi")},
+        responses={200: CircleSerializer, 404: openapi.Response(description="Not found")},
         tags=["Activities - Circles"],
     )
     def get(self, request, *args, **kwargs):
@@ -198,26 +198,26 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(apply_lang_filter(data, lang))
 
     @swagger_auto_schema(
-        operation_summary="To'garakni to'liq yangilash",
-        operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
+        operation_summary="Update circle completely",
+        operation_description="Admin only. Sent via **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
+            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Name (UZ)"),
+            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (UZ)"),
+            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (RU)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other']),
             openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('current_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('room', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Rasm"),
+            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Photo"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
         consumes=['multipart/form-data'],
-        responses={200: CircleSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: CircleSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Activities - Circles"],
     )
     def put(self, request, *args, **kwargs):
@@ -228,26 +228,26 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(CircleSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="To'garakni qisman yangilash",
-        operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
+        operation_summary="Update circle partially",
+        operation_description="Admin only. Only modified fields. **`multipart/form-data`**.",
         manual_parameters=[
-            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
+            openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (UZ)"),
+            openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Name (RU)"),
+            openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
+            openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+            openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (UZ)"),
+            openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Schedule (RU)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other']),
             openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('current_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('room', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Rasm"),
+            openapi.Parameter('photo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Photo"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
         consumes=['multipart/form-data'],
-        responses={200: CircleSerializer, 400: openapi.Response(description="Validatsiya xatosi")},
+        responses={200: CircleSerializer, 400: openapi.Response(description="Validation error")},
         tags=["Activities - Circles"],
     )
     def patch(self, request, *args, **kwargs):
@@ -258,9 +258,9 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(CircleSerializer(obj, context={'request': request}).data)
 
     @swagger_auto_schema(
-        operation_summary="To'garakni o'chirish",
-        operation_description="Faqat admin.",
-        responses={200: openapi.Response(description="Muvaffaqiyatli o'chirildi")},
+        operation_summary="Delete circle",
+        operation_description="Admin only.",
+        responses={200: openapi.Response(description="Deleted successfully")},
         tags=["Activities - Circles"],
     )
     def delete(self, request, *args, **kwargs):
@@ -269,7 +269,7 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
             'id': obj.id,
             'slug': obj.slug,
             'name': obj.name_uz or obj.name_ru or '',
-            'detail': "To'garak muvaffaqiyatli o'chirildi.",
+            'detail': "Circle deleted successfully.",
         }
         obj.delete()
         return Response(data, status=status.HTTP_200_OK)
