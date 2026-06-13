@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Statistic
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields):
@@ -37,7 +37,7 @@ def apply_lang_filter(data, lang):
 class StatisticSerializer(serializers.Serializer):
     """
     Read serializer.
-    translations — {"uz": {"label": "..."}, "ru": {"label": "..."}, ...}
+    translations — {"uz": {"label": "..."}, "ru": {"label": "..."}}
     """
     id = serializers.IntegerField(read_only=True)
     key = serializers.CharField()
@@ -68,17 +68,9 @@ class StatisticWriteSerializer(serializers.Serializer):
         max_length=100, required=False, allow_blank=True,
         help_text="Yorliq (O'zbek lotin). Masalan: O'quvchilar soni"
     )
-    label_uz_cyrl = serializers.CharField(
-        max_length=100, required=False, allow_blank=True,
-        help_text="Yorliq (O'zbek kirill)"
-    )
     label_ru = serializers.CharField(
         max_length=100, required=False, allow_blank=True,
         help_text="Yorliq (Rus). Masalan: Количество учеников"
-    )
-    label_en = serializers.CharField(
-        max_length=100, required=False, allow_blank=True,
-        help_text="Yorliq (Ingliz). Masalan: Number of Students"
     )
     icon = serializers.CharField(
         max_length=100, required=False, allow_blank=True, allow_null=True,
@@ -104,13 +96,13 @@ class StatisticWriteSerializer(serializers.Serializer):
             instance = self.instance
             labels = [
                 data.get(f'label_{l}') or (getattr(instance, f'label_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            labels = [data.get(f'label_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            labels = [data.get(f'label_{l}', '') for l in ['uz', 'ru']]
         if not any(labels):
             raise serializers.ValidationError(
-                "Kamida bitta tilda yorliq kiritilishi shart (label_uz, label_ru yoki label_en)."
+                "Kamida bitta tilda yorliq kiritilishi shart (label_uz yoki label_ru)."
             )
         return data
 

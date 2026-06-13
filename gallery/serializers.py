@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import GalleryAlbum, GalleryPhoto, UsefulLink, InfrastructureItem, Video
 from core.validators import validate_image, validate_video
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields):
@@ -152,35 +152,19 @@ class GalleryAlbumWriteSerializer(serializers.Serializer):
     """
     title_uz = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
-        help_text="Album nomi (O'zbek lotin)"
-    )
-    title_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Album nomi (O'zbek kirill)"
+        help_text="Albom nomi (O'zbek lotin)"
     )
     title_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
-        help_text="Album nomi (Rus)"
-    )
-    title_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Album nomi (Ingliz)"
+        help_text="Albom nomi (Rus)"
     )
     description_uz = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
         help_text="Tavsif (O'zbek lotin)"
     )
-    description_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True,
-        help_text="Tavsif (O'zbek kirill)"
-    )
     description_ru = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
         help_text="Tavsif (Rus)"
-    )
-    description_en = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True,
-        help_text="Tavsif (Ingliz)"
     )
     cover_image = serializers.ImageField(
         required=False, allow_null=True,
@@ -201,13 +185,13 @@ class GalleryAlbumWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda album nomi kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda albom nomi kiritilishi shart (title_uz yoki title_ru)."
             )
         return data
 
@@ -253,7 +237,7 @@ class UsefulLinkWriteSerializer(serializers.Serializer):
     )
     url = serializers.URLField(
         max_length=500,
-        help_text="To'liq URL manzil (https://...)"
+        help_text="To'liq URL manzili (https://...)"
     )
     logo = serializers.ImageField(
         required=False, allow_null=True,
@@ -313,33 +297,17 @@ class InfrastructureItemWriteSerializer(serializers.Serializer):
         max_length=300, required=False, allow_blank=True,
         help_text="Nomi (O'zbek lotin)"
     )
-    title_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Nomi (O'zbek kirill)"
-    )
     title_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Nomi (Rus)"
-    )
-    title_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Nomi (Ingliz)"
     )
     description_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Tavsif (O'zbek lotin)"
     )
-    description_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Tavsif (O'zbek kirill)"
-    )
     description_ru = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Tavsif (Rus)"
-    )
-    description_en = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Tavsif (Ingliz)"
     )
     image = serializers.ImageField(
         required=False, allow_null=True,
@@ -356,13 +324,13 @@ class InfrastructureItemWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda nom kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda nom kiritilishi shart (title_uz yoki title_ru)."
             )
         if not self.instance and not data.get('image'):
             raise serializers.ValidationError("Rasm (image) majburiy.")
@@ -418,14 +386,10 @@ class VideoWriteSerializer(serializers.Serializer):
     Video hajmi max 500 MB, faqat mp4/webm/avi/mov formatlari qabul qilinadi.
     """
     title_uz = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Sarlavha (O'zbek lotin)")
-    title_uz_cyrl = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Sarlavha (O'zbek kirill)")
     title_ru = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Sarlavha (Rus)")
-    title_en = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Sarlavha (Ingliz)")
 
     description_uz = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (O'zbek lotin)")
-    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (O'zbek kirill)")
     description_ru = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (Rus)")
-    description_en = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (Ingliz)")
 
     video_file = serializers.FileField(
         required=False, allow_null=True,
@@ -449,13 +413,13 @@ class VideoWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz yoki title_ru)."
             )
         if not self.instance and not data.get('video_file'):
             raise serializers.ValidationError("Video fayl (video_file) majburiy.")

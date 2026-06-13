@@ -75,14 +75,10 @@ class AdmissionSubject(models.Model):
 
     # Tarjima maydonlari
     subject_name_uz = models.CharField(max_length=200, blank=True, verbose_name="Fan nomi (UZ)")
-    subject_name_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Fan nomi (UZ Kirill)")
     subject_name_ru = models.CharField(max_length=200, blank=True, verbose_name="Fan nomi (RU)")
-    subject_name_en = models.CharField(max_length=200, blank=True, verbose_name="Fan nomi (EN)")
 
     description_uz = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(null=True, blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(null=True, blank=True, verbose_name="Tavsif (EN)")
 
     subject_type = models.CharField(
         max_length=20, choices=SubjectType.choices,
@@ -102,20 +98,16 @@ class AdmissionSubject(models.Model):
         ]
 
     def __str__(self):
-        return self.subject_name_uz or self.subject_name_ru or self.subject_name_en or f"Subject #{self.pk}"
+        return self.subject_name_uz or self.subject_name_ru or f"Subject #{self.pk}"
 
 
 class AdmissionDocument(models.Model):
     # Tarjima maydonlari
     document_name_uz = models.CharField(max_length=300, blank=True, verbose_name="Hujjat nomi (UZ)")
-    document_name_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Hujjat nomi (UZ Kirill)")
     document_name_ru = models.CharField(max_length=300, blank=True, verbose_name="Hujjat nomi (RU)")
-    document_name_en = models.CharField(max_length=300, blank=True, verbose_name="Hujjat nomi (EN)")
 
     note_uz = models.CharField(max_length=500, null=True, blank=True, verbose_name="Izoh (UZ)")
-    note_uz_cyrl = models.CharField(max_length=500, null=True, blank=True, verbose_name="Izoh (UZ Kirill)")
     note_ru = models.CharField(max_length=500, null=True, blank=True, verbose_name="Izoh (RU)")
-    note_en = models.CharField(max_length=500, null=True, blank=True, verbose_name="Izoh (EN)")
 
     document_file = models.FileField(
         upload_to='admission_documents/', null=True, blank=True, verbose_name="Hujjat fayli"
@@ -134,7 +126,7 @@ class AdmissionDocument(models.Model):
         ]
 
     def __str__(self):
-        return self.document_name_uz or self.document_name_ru or self.document_name_en or f"Document #{self.pk}"
+        return self.document_name_uz or self.document_name_ru or f"Document #{self.pk}"
 
 
 class DarsJadvali(models.Model):
@@ -143,9 +135,7 @@ class DarsJadvali(models.Model):
     Masalan: "1-kurs", "2-kurs" va h.k.
     """
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Nomi (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Nomi (EN)")
 
     file = models.FileField(
         upload_to='dars_jadvali/',
@@ -168,7 +158,7 @@ class DarsJadvali(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Jadval #{self.pk}"
+        return self.title_uz or self.title_ru or f"Jadval #{self.pk}"
 
 
 class FAQ(models.Model):
@@ -180,14 +170,10 @@ class FAQ(models.Model):
 
     # Tarjima maydonlari
     question_uz = models.TextField(blank=True, verbose_name="Savol (UZ)")
-    question_uz_cyrl = models.TextField(blank=True, verbose_name="Savol (UZ Kirill)")
     question_ru = models.TextField(blank=True, verbose_name="Savol (RU)")
-    question_en = models.TextField(blank=True, verbose_name="Savol (EN)")
 
     answer_uz = models.TextField(blank=True, verbose_name="Javob (UZ)")
-    answer_uz_cyrl = models.TextField(blank=True, verbose_name="Javob (UZ Kirill)")
     answer_ru = models.TextField(blank=True, verbose_name="Javob (RU)")
-    answer_en = models.TextField(blank=True, verbose_name="Javob (EN)")
 
     category = models.CharField(
         max_length=20, choices=Category.choices,
@@ -209,5 +195,5 @@ class FAQ(models.Model):
         ]
 
     def __str__(self):
-        q = self.question_uz or self.question_ru or self.question_en or ''
+        q = self.question_uz or self.question_ru or ''
         return q[:100]

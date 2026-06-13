@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import SiteSettings, Slider
 from core.validators import validate_image
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 TRANS_FIELDS = ['short_name', 'full_name', 'address']
 
 
@@ -71,49 +71,25 @@ class SiteSettingsWriteSerializer(serializers.Serializer):
         max_length=100, required=False, allow_blank=True,
         help_text="Qisqa nomi (O'zbek lotin). Masalan: Akademik Litsey"
     )
-    short_name_uz_cyrl = serializers.CharField(
-        max_length=100, required=False, allow_blank=True,
-        help_text="Qisqa nomi (O'zbek kirill)"
-    )
     short_name_ru = serializers.CharField(
         max_length=100, required=False, allow_blank=True,
         help_text="Qisqa nomi (Rus)"
-    )
-    short_name_en = serializers.CharField(
-        max_length=100, required=False, allow_blank=True,
-        help_text="Qisqa nomi (Ingliz)"
     )
     full_name_uz = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="To'liq nomi (O'zbek lotin)"
     )
-    full_name_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="To'liq nomi (O'zbek kirill)"
-    )
     full_name_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="To'liq nomi (Rus)"
-    )
-    full_name_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="To'liq nomi (Ingliz)"
     )
     address_uz = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Manzil (O'zbek lotin)"
     )
-    address_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Manzil (O'zbek kirill)"
-    )
     address_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Manzil (Rus)"
-    )
-    address_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Manzil (Ingliz)"
     )
     # Umumiy maydonlar
     established_year = serializers.IntegerField(
@@ -204,18 +180,14 @@ class SliderWriteSerializer(serializers.Serializer):
     """Write serializer — flat fields, image multipart."""
     image = serializers.ImageField(required=False, allow_null=True, help_text="Slider rasmi. Maks: 8 MB.")
 
-    title_uz      = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    title_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    title_ru      = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    title_en      = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    title_uz = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    title_ru = serializers.CharField(max_length=200, required=False, allow_blank=True)
 
-    description_uz      = serializers.CharField(required=False, allow_blank=True)
-    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True)
-    description_ru      = serializers.CharField(required=False, allow_blank=True)
-    description_en      = serializers.CharField(required=False, allow_blank=True)
+    description_uz = serializers.CharField(required=False, allow_blank=True)
+    description_ru = serializers.CharField(required=False, allow_blank=True)
 
     sort_order = serializers.IntegerField(required=False, min_value=1, default=1)
-    is_active  = serializers.BooleanField(required=False, default=True)
+    is_active = serializers.BooleanField(required=False, default=True)
 
     def validate_image(self, value):
         return validate_image(value)

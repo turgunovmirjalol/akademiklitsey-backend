@@ -61,15 +61,11 @@ class LibraryResource(models.Model):
 
     # Tarjima maydonlari — nom
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Nomi (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Nomi (EN)")
 
     # Tarjima maydonlari — tavsif
     description_uz = models.TextField(blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(blank=True, verbose_name="Tavsif (EN)")
 
     # Muallif
     author = models.CharField(max_length=300, blank=True, verbose_name="Muallif")
@@ -115,4 +111,4 @@ class LibraryResource(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Resurs #{self.pk}"
+        return self.title_uz or self.title_ru or f"Resurs #{self.pk}"

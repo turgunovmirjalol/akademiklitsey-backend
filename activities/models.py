@@ -13,19 +13,13 @@ class Circle(models.Model):
 
     # Tarjima maydonlari
     name_uz = models.CharField(max_length=200, blank=True, verbose_name="Nomi (UZ)")
-    name_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Nomi (UZ Kirill)")
     name_ru = models.CharField(max_length=200, blank=True, verbose_name="Nomi (RU)")
-    name_en = models.CharField(max_length=200, blank=True, verbose_name="Nomi (EN)")
 
     description_uz = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(null=True, blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(null=True, blank=True, verbose_name="Tavsif (EN)")
 
     schedule_uz = models.CharField(max_length=300, null=True, blank=True, verbose_name="Dars vaqti (UZ)")
-    schedule_uz_cyrl = models.CharField(max_length=300, null=True, blank=True, verbose_name="Dars vaqti (UZ Kirill)")
     schedule_ru = models.CharField(max_length=300, null=True, blank=True, verbose_name="Dars vaqti (RU)")
-    schedule_en = models.CharField(max_length=300, null=True, blank=True, verbose_name="Dars vaqti (EN)")
 
     # Umumiy maydonlar
     slug = models.SlugField(max_length=250, unique=True, blank=True, verbose_name="Slug")
@@ -56,14 +50,14 @@ class Circle(models.Model):
         ]
 
     def __str__(self):
-        return self.name_uz or self.name_ru or self.name_en or f"Circle #{self.pk}"
+        return self.name_uz or self.name_ru or f"Circle #{self.pk}"
 
     def get_name(self, lang='uz'):
         return getattr(self, f'name_{lang.replace("-", "_")}', '') or self.name_uz or ''
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.name_uz or self.name_ru or self.name_en or 'circle') or 'circle'
+            base = slugify(self.name_uz or self.name_ru or 'circle') or 'circle'
             slug = base
             counter = 1
             while Circle.objects.filter(slug=slug).exclude(pk=self.pk).exists():

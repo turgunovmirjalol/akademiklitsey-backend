@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Circle
 from core.validators import validate_image
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields):
@@ -75,49 +75,25 @@ class CircleWriteSerializer(serializers.Serializer):
         max_length=200, required=False, allow_blank=True,
         help_text="To'garak nomi (O'zbek lotin)"
     )
-    name_uz_cyrl = serializers.CharField(
-        max_length=200, required=False, allow_blank=True,
-        help_text="To'garak nomi (O'zbek kirill)"
-    )
     name_ru = serializers.CharField(
         max_length=200, required=False, allow_blank=True,
         help_text="To'garak nomi (Rus)"
-    )
-    name_en = serializers.CharField(
-        max_length=200, required=False, allow_blank=True,
-        help_text="To'garak nomi (Ingliz)"
     )
     description_uz = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
         help_text="Tavsif (O'zbek lotin)"
     )
-    description_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True,
-        help_text="Tavsif (O'zbek kirill)"
-    )
     description_ru = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
         help_text="Tavsif (Rus)"
-    )
-    description_en = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True,
-        help_text="Tavsif (Ingliz)"
     )
     schedule_uz = serializers.CharField(
         max_length=300, required=False, allow_blank=True, allow_null=True,
         help_text="Dars vaqti (O'zbek lotin). Masalan: Dushanba, Chorshanba 15:00-17:00"
     )
-    schedule_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True, allow_null=True,
-        help_text="Dars vaqti (O'zbek kirill)"
-    )
     schedule_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True, allow_null=True,
         help_text="Dars vaqti (Rus)"
-    )
-    schedule_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True, allow_null=True,
-        help_text="Dars vaqti (Ingliz)"
     )
     # Umumiy maydonlar
     category = serializers.ChoiceField(
@@ -174,13 +150,13 @@ class CircleWriteSerializer(serializers.Serializer):
             instance = self.instance
             names = [
                 data.get(f'name_{l}') or (getattr(instance, f'name_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            names = [data.get(f'name_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            names = [data.get(f'name_{l}', '') for l in ['uz', 'ru']]
         if not any(names):
             raise serializers.ValidationError(
-                "Kamida bitta tilda to'garak nomi kiritilishi shart (name_uz, name_ru yoki name_en)."
+                "Kamida bitta tilda to'garak nomi kiritilishi shart (name_uz yoki name_ru)."
             )
         max_s = data.get('max_students')
         cur_s = data.get('current_students', 0)

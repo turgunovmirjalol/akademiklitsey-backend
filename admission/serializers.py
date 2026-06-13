@@ -1,8 +1,8 @@
-﻿from rest_framework import serializers
+from rest_framework import serializers
 from .models import AdmissionInfo, AdmissionSubject, AdmissionDocument, FAQ, DarsJadvali
 from core.validators import validate_document
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields):
@@ -17,7 +17,7 @@ def build_translations(obj, fields):
     return result
 
 
-# в”Ђв”Ђв”Ђ AdmissionInfo в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── AdmissionInfo ────────────────────────────────────────────────────────────
 
 class AdmissionInfoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,7 +68,7 @@ class AdmissionInfoWriteSerializer(serializers.ModelSerializer):
         return data
 
 
-# в”Ђв”Ђв”Ђ AdmissionSubject в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── AdmissionSubject ──────────────────────────────────────────────────────────
 
 class AdmissionSubjectSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -87,13 +87,9 @@ class AdmissionSubjectSerializer(serializers.Serializer):
 
 class AdmissionSubjectWriteSerializer(serializers.Serializer):
     subject_name_uz = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    subject_name_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True)
     subject_name_ru = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    subject_name_en = serializers.CharField(max_length=200, required=False, allow_blank=True)
     description_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     description_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    description_en = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     subject_type = serializers.ChoiceField(choices=AdmissionSubject.SubjectType.choices, default='test')
     max_score = serializers.IntegerField(min_value=1)
     sort_order = serializers.IntegerField(default=0)
@@ -101,9 +97,7 @@ class AdmissionSubjectWriteSerializer(serializers.Serializer):
     def validate(self, data):
         names = [
             data.get('subject_name_uz', ''),
-            data.get('subject_name_ru', ''),
-            data.get('subject_name_en', ''),
-            data.get('subject_name_uz_cyrl', ''),
+            data.get('subject_name_ru', '')
         ]
         if not any(names):
             raise serializers.ValidationError(
@@ -121,7 +115,7 @@ class AdmissionSubjectWriteSerializer(serializers.Serializer):
         return instance
 
 
-# в”Ђв”Ђв”Ђ AdmissionDocument в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── AdmissionDocument ─────────────────────────────────────────────────────────
 
 class AdmissionDocumentSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -142,13 +136,9 @@ class AdmissionDocumentSerializer(serializers.Serializer):
 
 class AdmissionDocumentWriteSerializer(serializers.Serializer):
     document_name_uz = serializers.CharField(max_length=300, required=False, allow_blank=True)
-    document_name_uz_cyrl = serializers.CharField(max_length=300, required=False, allow_blank=True)
     document_name_ru = serializers.CharField(max_length=300, required=False, allow_blank=True)
-    document_name_en = serializers.CharField(max_length=300, required=False, allow_blank=True)
     note_uz = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
-    note_uz_cyrl = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
     note_ru = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
-    note_en = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
     document_file = serializers.FileField(
         required=False, allow_null=True,
         help_text="Hujjat fayli (PDF, DOCX va h.k.). Maks: 30 MB."
@@ -162,9 +152,7 @@ class AdmissionDocumentWriteSerializer(serializers.Serializer):
     def validate(self, data):
         names = [
             data.get('document_name_uz', ''),
-            data.get('document_name_ru', ''),
-            data.get('document_name_en', ''),
-            data.get('document_name_uz_cyrl', ''),
+            data.get('document_name_ru', '')
         ]
         if not any(names):
             raise serializers.ValidationError(
@@ -182,7 +170,7 @@ class AdmissionDocumentWriteSerializer(serializers.Serializer):
         return instance
 
 
-# в”Ђв”Ђв”Ђ FAQ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── FAQ ──────────────────────────────────────────────────────────────────────
 
 class FAQSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -202,24 +190,18 @@ class FAQSerializer(serializers.Serializer):
 
 class FAQWriteSerializer(serializers.Serializer):
     question_uz = serializers.CharField(required=False, allow_blank=True)
-    question_uz_cyrl = serializers.CharField(required=False, allow_blank=True)
     question_ru = serializers.CharField(required=False, allow_blank=True)
-    question_en = serializers.CharField(required=False, allow_blank=True)
     answer_uz = serializers.CharField(required=False, allow_blank=True)
-    answer_uz_cyrl = serializers.CharField(required=False, allow_blank=True)
     answer_ru = serializers.CharField(required=False, allow_blank=True)
-    answer_en = serializers.CharField(required=False, allow_blank=True)
     category = serializers.ChoiceField(choices=FAQ.Category.choices, default='general')
     is_featured = serializers.BooleanField(default=False)
     sort_order = serializers.IntegerField(default=0)
     is_active = serializers.BooleanField(default=True)
 
     def validate(self, data):
-        if not any([data.get('question_uz', ''), data.get('question_ru', ''),
-                    data.get('question_en', ''), data.get('question_uz_cyrl', '')]):
+        if not any([data.get('question_uz', ''), data.get('question_ru', '')]):
             raise serializers.ValidationError("Kamida bitta tilda savol kiritilishi shart.")
-        if not any([data.get('answer_uz', ''), data.get('answer_ru', ''),
-                    data.get('answer_en', ''), data.get('answer_uz_cyrl', '')]):
+        if not any([data.get('answer_uz', ''), data.get('answer_ru', '')]):
             raise serializers.ValidationError("Kamida bitta tilda javob kiritilishi shart.")
         return data
 
@@ -260,9 +242,7 @@ class DarsJadvaliSerializer(serializers.Serializer):
 class DarsJadvaliWriteSerializer(serializers.Serializer):
     """Write serializer — multipart/form-data."""
     title_uz = serializers.CharField(max_length=300, required=False, allow_blank=True)
-    title_uz_cyrl = serializers.CharField(max_length=300, required=False, allow_blank=True)
     title_ru = serializers.CharField(max_length=300, required=False, allow_blank=True)
-    title_en = serializers.CharField(max_length=300, required=False, allow_blank=True)
     file = serializers.FileField(
         required=False, allow_null=True,
         help_text="Jadval fayli (PDF, DOCX, XLSX). Maks: 30 MB."
@@ -278,10 +258,10 @@ class DarsJadvaliWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError("Kamida bitta tilda jadval nomi kiritilishi shart.")
         if not self.partial and not data.get('file'):
@@ -302,4 +282,3 @@ class AdmissionCurrentSerializer(serializers.Serializer):
     admission_info = AdmissionInfoSerializer()
     subjects = AdmissionSubjectSerializer(many=True)
     documents = AdmissionDocumentSerializer(many=True)
-

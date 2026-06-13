@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import LibraryResource, LibraryStats
 from core.validators import validate_image, validate_document
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields: list) -> dict:
@@ -114,14 +114,10 @@ class LibraryResourceSerializer(serializers.Serializer):
 
 class LibraryResourceWriteSerializer(serializers.Serializer):
     title_uz = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Nomi (UZ)")
-    title_uz_cyrl = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Nomi (UZ Kirill)")
     title_ru = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Nomi (RU)")
-    title_en = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Nomi (EN)")
 
     description_uz = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (UZ)")
-    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (UZ Kirill)")
     description_ru = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (RU)")
-    description_en = serializers.CharField(required=False, allow_blank=True, help_text="Tavsif (EN)")
 
     author = serializers.CharField(max_length=300, required=False, allow_blank=True, help_text="Muallif")
     category = serializers.ChoiceField(choices=LibraryResource.Category.choices, default=LibraryResource.Category.DARSLIK)
@@ -143,13 +139,13 @@ class LibraryResourceWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda resurs nomi kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda resurs nomi kiritilishi shart (title_uz yoki title_ru)."
             )
         return data
 

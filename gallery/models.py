@@ -7,14 +7,10 @@ class GalleryAlbum(models.Model):
 
     # Tarjima maydonlari
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Nomi (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Nomi (EN)")
 
     description_uz = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(null=True, blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(null=True, blank=True, verbose_name="Tavsif (EN)")
 
     # Umumiy maydonlar
     slug = models.SlugField(max_length=350, unique=True, blank=True, verbose_name="Slug")
@@ -40,11 +36,11 @@ class GalleryAlbum(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Album #{self.pk}"
+        return self.title_uz or self.title_ru or f"Album #{self.pk}"
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title_uz or self.title_ru or self.title_en or 'album') or 'album'
+            base = slugify(self.title_uz or self.title_ru or 'album') or 'album'
             slug = base
             counter = 1
             while GalleryAlbum.objects.filter(slug=slug).exclude(pk=self.pk).exists():
@@ -106,14 +102,10 @@ class InfrastructureItem(models.Model):
 
     # Tarjima maydonlari
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Nomi (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Nomi (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Nomi (EN)")
 
     description_uz = models.TextField(blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(blank=True, verbose_name="Tavsif (EN)")
 
     # Umumiy maydonlar
     image = models.ImageField(upload_to='infrastructure/', verbose_name="Rasm")
@@ -132,20 +124,17 @@ class InfrastructureItem(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Infrastructure #{self.pk}"
+        return self.title_uz or self.title_ru or f"Infrastructure #{self.pk}"
+
 
 class Video(models.Model):
     """Video lavhalar — title va description ko'p tilli."""
 
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (EN)")
 
     description_uz = models.TextField(blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(blank=True, verbose_name="Tavsif (EN)")
 
     video_file = models.FileField(
         upload_to='videos/', verbose_name="Video fayl (mp4, webm va boshqalar)"
@@ -169,7 +158,7 @@ class Video(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Video #{self.pk}"
+        return self.title_uz or self.title_ru or f"Video #{self.pk}"
 
 
 class UsefulLink(models.Model):

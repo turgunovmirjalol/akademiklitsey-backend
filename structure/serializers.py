@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Department, Teacher, Management
 from core.validators import validate_image
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 
 def build_translations(obj, fields):
@@ -66,7 +66,7 @@ class TeacherSerializer(serializers.Serializer):
 
     def get_department_name(self, obj):
         if obj.department:
-            return obj.department.name_uz or obj.department.name_ru or obj.department.name_en or ''
+            return obj.department.name_uz or obj.department.name_ru or ''
         return None
 
     def get_photo(self, obj):
@@ -86,24 +86,16 @@ class TeacherWriteSerializer(serializers.Serializer):
 
     # Tarjima maydonlari
     position_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ)")
-    position_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ Kirill)")
     position_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (RU)")
-    position_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (EN)")
 
     subject_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (UZ)")
-    subject_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (UZ Kirill)")
     subject_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (RU)")
-    subject_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="O'qitadigan fan (EN)")
 
     bio_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ)")
-    bio_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ Kirill)")
     bio_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (RU)")
-    bio_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (EN)")
 
     achievements_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (UZ)")
-    achievements_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (UZ Kirill)")
     achievements_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (RU)")
-    achievements_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Yutuqlar (EN)")
 
     # Umumiy maydonlar
     academic_degree = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
@@ -130,21 +122,20 @@ class TeacherWriteSerializer(serializers.Serializer):
     def validate(self, data):
         # PATCH (partial=True) da mavjud instance ni ham hisobga olamiz
         if not self.partial:
-            positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru']]
             if not any(positions):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz yoki position_ru)."
                 )
         else:
-            # PATCH: faqat yangi data yuborilgan bo'lsa tekshiramiz, aks holda instance dagi mavjud qiymatlar saqlanadi
             instance = self.instance
             positions = [
                 data.get(f'position_{l}') or (getattr(instance, f'position_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
             if not any(positions):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz yoki position_ru)."
                 )
         return data
 
@@ -202,14 +193,10 @@ class DepartmentDetailSerializer(DepartmentSerializer):
 class DepartmentWriteSerializer(serializers.Serializer):
     """Write serializer. Kamida bitta tilda name_* to'ldirilishi shart."""
     name_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (UZ)")
-    name_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (UZ Kirill)")
     name_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (RU)")
-    name_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Nomi (EN)")
 
     description_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (UZ)")
-    description_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (UZ Kirill)")
     description_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (RU)")
-    description_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tavsif (EN)")
 
     head_teacher = serializers.IntegerField(required=False, allow_null=True, help_text="Kafedra mudiri ID si")
     subjects = serializers.ListField(child=serializers.CharField(), required=False, allow_null=True, help_text="Fanlar ro'yxati")
@@ -229,20 +216,20 @@ class DepartmentWriteSerializer(serializers.Serializer):
 
     def validate(self, data):
         if not self.partial:
-            names = [data.get(f'name_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            names = [data.get(f'name_{l}', '') for l in ['uz', 'ru']]
             if not any(names):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda kafedra nomi kiritilishi shart (name_uz, name_ru yoki name_en)."
+                    "Kamida bitta tilda kafedra nomi kiritilishi shart (name_uz yoki name_ru)."
                 )
         else:
             instance = self.instance
             names = [
                 data.get(f'name_{l}') or (getattr(instance, f'name_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
             if not any(names):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda kafedra nomi kiritilishi shart (name_uz, name_ru yoki name_en)."
+                    "Kamida bitta tilda kafedra nomi kiritilishi shart (name_uz yoki name_ru)."
                 )
         return data
 
@@ -287,19 +274,13 @@ class ManagementWriteSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=200, help_text="To'liq ismi (majburiy)")
 
     position_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ)")
-    position_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (UZ Kirill)")
     position_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (RU)")
-    position_en = serializers.CharField(max_length=200, required=False, allow_blank=True, help_text="Lavozimi (EN)")
 
     bio_uz = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ)")
-    bio_uz_cyrl = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (UZ Kirill)")
     bio_ru = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (RU)")
-    bio_en = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Tarjimai hol (EN)")
 
     reception_hours_uz = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (UZ)")
-    reception_hours_uz_cyrl = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (UZ Kirill)")
     reception_hours_ru = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (RU)")
-    reception_hours_en = serializers.CharField(max_length=200, required=False, allow_blank=True, allow_null=True, help_text="Qabul vaqti (EN)")
 
     academic_degree = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
@@ -313,20 +294,20 @@ class ManagementWriteSerializer(serializers.Serializer):
 
     def validate(self, data):
         if not self.partial:
-            positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            positions = [data.get(f'position_{l}', '') for l in ['uz', 'ru']]
             if not any(positions):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz yoki position_ru)."
                 )
         else:
             instance = self.instance
             positions = [
                 data.get(f'position_{l}') or (getattr(instance, f'position_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
             if not any(positions):
                 raise serializers.ValidationError(
-                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz, position_ru yoki position_en)."
+                    "Kamida bitta tilda lavozim kiritilishi shart (position_uz yoki position_ru)."
                 )
         return data
 

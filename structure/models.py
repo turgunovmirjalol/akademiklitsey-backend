@@ -7,14 +7,10 @@ class Department(models.Model):
 
     # Tarjima maydonlari
     name_uz = models.CharField(max_length=200, blank=True, verbose_name="Nomi (UZ)")
-    name_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Nomi (UZ Kirill)")
     name_ru = models.CharField(max_length=200, blank=True, verbose_name="Nomi (RU)")
-    name_en = models.CharField(max_length=200, blank=True, verbose_name="Nomi (EN)")
 
     description_uz = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ)")
-    description_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tavsif (UZ Kirill)")
     description_ru = models.TextField(null=True, blank=True, verbose_name="Tavsif (RU)")
-    description_en = models.TextField(null=True, blank=True, verbose_name="Tavsif (EN)")
 
     # Umumiy maydonlar
     slug = models.SlugField(max_length=250, unique=True, blank=True, verbose_name="Slug")
@@ -46,11 +42,11 @@ class Department(models.Model):
         ]
 
     def __str__(self):
-        return self.name_uz or self.name_ru or self.name_en or f"Department #{self.pk}"
+        return self.name_uz or self.name_ru or f"Department #{self.pk}"
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.name_uz or self.name_ru or self.name_en or 'department') or 'department'
+            base = slugify(self.name_uz or self.name_ru or 'department') or 'department'
             slug = base
             counter = 1
             while Department.objects.filter(slug=slug).exclude(pk=self.pk).exists():
@@ -79,24 +75,16 @@ class Teacher(models.Model):
 
     # Tarjima maydonlari
     position_uz = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (UZ)")
-    position_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (UZ Kirill)")
     position_ru = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (RU)")
-    position_en = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (EN)")
 
     subject_uz = models.CharField(max_length=200, blank=True, verbose_name="O'qitadigan fan (UZ)")
-    subject_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="O'qitadigan fan (UZ Kirill)")
     subject_ru = models.CharField(max_length=200, blank=True, verbose_name="O'qitadigan fan (RU)")
-    subject_en = models.CharField(max_length=200, blank=True, verbose_name="O'qitadigan fan (EN)")
 
     bio_uz = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (UZ)")
-    bio_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (UZ Kirill)")
     bio_ru = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (RU)")
-    bio_en = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (EN)")
 
     achievements_uz = models.TextField(null=True, blank=True, verbose_name="Yutuqlar (UZ)")
-    achievements_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Yutuqlar (UZ Kirill)")
     achievements_ru = models.TextField(null=True, blank=True, verbose_name="Yutuqlar (RU)")
-    achievements_en = models.TextField(null=True, blank=True, verbose_name="Yutuqlar (EN)")
 
     # Umumiy maydonlar
     academic_degree = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ilmiy daraja")
@@ -151,19 +139,13 @@ class Management(models.Model):
 
     # Tarjima maydonlari
     position_uz = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (UZ)")
-    position_uz_cyrl = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (UZ Kirill)")
     position_ru = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (RU)")
-    position_en = models.CharField(max_length=200, blank=True, verbose_name="Lavozimi (EN)")
 
     bio_uz = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (UZ)")
-    bio_uz_cyrl = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (UZ Kirill)")
     bio_ru = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (RU)")
-    bio_en = models.TextField(null=True, blank=True, verbose_name="Tarjimai hol (EN)")
 
     reception_hours_uz = models.CharField(max_length=200, null=True, blank=True, verbose_name="Qabul vaqti (UZ)")
-    reception_hours_uz_cyrl = models.CharField(max_length=200, null=True, blank=True, verbose_name="Qabul vaqti (UZ Kirill)")
     reception_hours_ru = models.CharField(max_length=200, null=True, blank=True, verbose_name="Qabul vaqti (RU)")
-    reception_hours_en = models.CharField(max_length=200, null=True, blank=True, verbose_name="Qabul vaqti (EN)")
 
     # Umumiy maydonlar
     academic_degree = models.CharField(max_length=100, null=True, blank=True, verbose_name="Ilmiy daraja")

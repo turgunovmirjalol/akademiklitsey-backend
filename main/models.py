@@ -4,7 +4,7 @@ from django.db import models
 class Statistic(models.Model):
     """
     Bosh sahifa statistikalari.
-    key   — texnik identifikator (o'zgarmas)
+    key — texnik identifikator (o'zgarmas)
     value — raqamli qiymat
     label — ko'p tilli yorliq (frontendda ko'rsatiladi)
     icon  — CSS/font-awesome icon classi
@@ -23,17 +23,9 @@ class Statistic(models.Model):
         max_length=100, blank=True,
         verbose_name="Yorliq (UZ)"
     )
-    label_uz_cyrl = models.CharField(
-        max_length=100, blank=True,
-        verbose_name="Yorliq (UZ Kirill)"
-    )
     label_ru = models.CharField(
         max_length=100, blank=True,
         verbose_name="Yorliq (RU)"
-    )
-    label_en = models.CharField(
-        max_length=100, blank=True,
-        verbose_name="Yorliq (EN)"
     )
 
     icon = models.CharField(
@@ -53,7 +45,7 @@ class Statistic(models.Model):
         ordering = ['sort_order']
 
     def __str__(self):
-        label = self.label_uz or self.label_ru or self.label_en or self.key
+        label = self.label_uz or self.label_ru or self.key
         return f"{label}: {self.value}"
 
     def get_label(self, lang='uz'):

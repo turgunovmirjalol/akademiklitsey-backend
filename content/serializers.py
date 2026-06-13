@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import News, Announcement
 from core.validators import validate_image
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 NEWS_FIELDS = ['title', 'short_description', 'content']
 ANN_FIELDS = ['title', 'short_description', 'content']
 
@@ -80,49 +80,25 @@ class NewsWriteSerializer(serializers.Serializer):
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (O'zbek lotin)"
     )
-    title_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Sarlavha (O'zbek kirill)"
-    )
     title_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (Rus)"
-    )
-    title_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Sarlavha (Ingliz)"
     )
     short_description_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Qisqa tavsif (O'zbek lotin)"
     )
-    short_description_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (O'zbek kirill)"
-    )
     short_description_ru = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Qisqa tavsif (Rus)"
-    )
-    short_description_en = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (Ingliz)"
     )
     content_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="To'liq matn (O'zbek lotin)"
     )
-    content_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="To'liq matn (O'zbek kirill)"
-    )
     content_ru = serializers.CharField(
         required=False, allow_blank=True,
         help_text="To'liq matn (Rus)"
-    )
-    content_en = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="To'liq matn (Ingliz)"
     )
     # Umumiy maydonlar
     image = serializers.ImageField(
@@ -151,13 +127,13 @@ class NewsWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz yoki title_ru)."
             )
         return data
 
@@ -217,49 +193,25 @@ class AnnouncementWriteSerializer(serializers.Serializer):
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (O'zbek lotin)"
     )
-    title_uz_cyrl = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Sarlavha (O'zbek kirill)"
-    )
     title_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (Rus)"
-    )
-    title_en = serializers.CharField(
-        max_length=300, required=False, allow_blank=True,
-        help_text="Sarlavha (Ingliz)"
     )
     short_description_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Qisqa tavsif (O'zbek lotin)"
     )
-    short_description_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (O'zbek kirill)"
-    )
     short_description_ru = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Qisqa tavsif (Rus)"
-    )
-    short_description_en = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (Ingliz)"
     )
     content_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="To'liq matn (O'zbek lotin)"
     )
-    content_uz_cyrl = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="To'liq matn (O'zbek kirill)"
-    )
     content_ru = serializers.CharField(
         required=False, allow_blank=True,
         help_text="To'liq matn (Rus)"
-    )
-    content_en = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="To'liq matn (Ingliz)"
     )
     # Umumiy maydonlar
     image = serializers.ImageField(
@@ -292,13 +244,13 @@ class AnnouncementWriteSerializer(serializers.Serializer):
             instance = self.instance
             titles = [
                 data.get(f'title_{l}') or (getattr(instance, f'title_{l}', '') if instance else '')
-                for l in ['uz', 'ru', 'en', 'uz_cyrl']
+                for l in ['uz', 'ru']
             ]
         else:
-            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru', 'en', 'uz_cyrl']]
+            titles = [data.get(f'title_{l}', '') for l in ['uz', 'ru']]
         if not any(titles):
             raise serializers.ValidationError(
-                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz, title_ru yoki title_en)."
+                "Kamida bitta tilda sarlavha kiritilishi shart (title_uz yoki title_ru)."
             )
         return data
 

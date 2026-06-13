@@ -5,7 +5,7 @@ from django.utils.text import slugify
 
 User = get_user_model()
 
-LANGS = ('uz', 'uz_cyrl', 'ru', 'en')
+LANGS = ('uz', 'ru')
 
 
 class News(models.Model):
@@ -16,19 +16,13 @@ class News(models.Model):
 
     # Tarjima maydonlari
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (EN)")
 
     short_description_uz = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ)")
-    short_description_uz_cyrl = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ Kirill)")
     short_description_ru = models.TextField(blank=True, verbose_name="Qisqa tavsif (RU)")
-    short_description_en = models.TextField(blank=True, verbose_name="Qisqa tavsif (EN)")
 
     content_uz = models.TextField(blank=True, verbose_name="Matn (UZ)")
-    content_uz_cyrl = models.TextField(blank=True, verbose_name="Matn (UZ Kirill)")
     content_ru = models.TextField(blank=True, verbose_name="Matn (RU)")
-    content_en = models.TextField(blank=True, verbose_name="Matn (EN)")
 
     # Umumiy maydonlar
     slug = models.SlugField(max_length=350, unique=True, blank=True, verbose_name="Slug")
@@ -56,14 +50,14 @@ class News(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"News #{self.pk}"
+        return self.title_uz or self.title_ru or f"News #{self.pk}"
 
     def get_title(self, lang='uz'):
         return getattr(self, f'title_{lang.replace("-", "_")}', '') or self.title_uz or ''
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title_uz or self.title_ru or self.title_en or 'news') or 'news'
+            base = slugify(self.title_uz or self.title_ru or 'news') or 'news'
             slug = base
             counter = 1
             while News.objects.filter(slug=slug).exclude(pk=self.pk).exists():
@@ -86,19 +80,13 @@ class Announcement(models.Model):
 
     # Tarjima maydonlari
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ)")
-    title_uz_cyrl = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ Kirill)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (RU)")
-    title_en = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (EN)")
 
     short_description_uz = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ)")
-    short_description_uz_cyrl = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ Kirill)")
     short_description_ru = models.TextField(blank=True, verbose_name="Qisqa tavsif (RU)")
-    short_description_en = models.TextField(blank=True, verbose_name="Qisqa tavsif (EN)")
 
     content_uz = models.TextField(blank=True, verbose_name="Matn (UZ)")
-    content_uz_cyrl = models.TextField(blank=True, verbose_name="Matn (UZ Kirill)")
     content_ru = models.TextField(blank=True, verbose_name="Matn (RU)")
-    content_en = models.TextField(blank=True, verbose_name="Matn (EN)")
 
     # Umumiy maydonlar
     slug = models.SlugField(max_length=350, unique=True, blank=True, verbose_name="Slug")
@@ -127,14 +115,14 @@ class Announcement(models.Model):
         ]
 
     def __str__(self):
-        return self.title_uz or self.title_ru or self.title_en or f"Announcement #{self.pk}"
+        return self.title_uz or self.title_ru or f"Announcement #{self.pk}"
 
     def get_title(self, lang='uz'):
         return getattr(self, f'title_{lang.replace("-", "_")}', '') or self.title_uz or ''
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title_uz or self.title_ru or self.title_en or 'announcement') or 'announcement'
+            base = slugify(self.title_uz or self.title_ru or 'announcement') or 'announcement'
             slug = base
             counter = 1
             while Announcement.objects.filter(slug=slug).exclude(pk=self.pk).exists():
