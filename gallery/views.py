@@ -421,7 +421,7 @@ class GalleryPhotoDetailView(APIView):
             try:
                 photo.sort_order = int(request.data['sort_order'])
             except (ValueError, TypeError):
-                return Response({'sort_order': 'Butun son bo'lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'sort_order': "Butun son bo'lishi kerak."}, status=status.HTTP_400_BAD_REQUEST)
         photo.save()
         return Response(GalleryPhotoSerializer(photo, context={'request': request}).data)
 
