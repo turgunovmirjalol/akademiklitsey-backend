@@ -589,6 +589,35 @@ class FAQListCreateView(generics.ListCreateAPIView):
         )
 
 
+class FAQFeaturedView(generics.ListAPIView):
+    """Featured FAQs — shown on the main page."""
+    permission_classes = [AllowAny]
+    serializer_class = FAQSerializer
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['sort_order']
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return FAQ.objects.none()
+        return FAQ.objects.filter(is_featured=True, is_active=True)
+
+    @swagger_auto_schema(
+        operation_summary="Featured FAQs",
+        operation_description=(
+            "Featured (front-page) FAQs.\n\n"
+            "- `?lang=uz|ru` — show only that language"
+        ),
+        manual_parameters=[LANG_PARAM],
+        responses={200: FAQSerializer(many=True)},
+        tags=['Admission - FAQ'],
+    )
+    def get(self, request, *args, **kwargs):
+        lang = request.query_params.get('lang')
+        qs = self.filter_queryset(self.get_queryset())
+        data = FAQSerializer(qs, many=True, context={'request': request}).data
+        return Response(apply_lang_filter(list(data), lang))
+
+
 class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Single FAQ — view, edit, delete."""
     permission_classes = [IsAdminOrReadOnly]
