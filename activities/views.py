@@ -17,9 +17,9 @@ from .serializers import CircleSerializer, CircleWriteSerializer
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
@@ -32,7 +32,7 @@ ALL_PARAM = openapi.Parameter(
 
 
 def apply_lang_filter(data, lang):
-    if not lang or lang not in ('uz', 'uz_cyrl', 'ru', 'en'):
+    if not lang or lang not in ('uz', 'ru'):
         return data
 
     def _filter(item):
@@ -66,7 +66,7 @@ class CircleListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'is_active']
-    search_fields = ['name_uz', 'name_ru', 'name_en', 'description_uz', 'description_ru']
+    search_fields = ['name_uz', 'name_ru', 'description_uz', 'description_ru']
     ordering_fields = ['sort_order', 'current_students', 'name_uz']
     ordering = ['sort_order']
 
@@ -94,7 +94,7 @@ class CircleListView(generics.ListCreateAPIView):
             "- `?is_active=true|false` (faqat admin)\n"
             "- `?all=true` — nofaollar ham (faqat admin)\n"
             "- `?search=...` — nom/tavsif bo'yicha qidirish\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM, ALL_PARAM],
         responses={200: CircleSerializer(many=True)},
@@ -119,17 +119,11 @@ class CircleListView(generics.ListCreateAPIView):
         ),
         manual_parameters=[
             openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ Kirill)"),
             openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
-            openapi.Parameter('schedule_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (EN)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other'], default='other'),
             openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="O'qituvchi ID"),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -208,17 +202,11 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
         manual_parameters=[
             openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ Kirill)"),
             openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
-            openapi.Parameter('schedule_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (EN)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other']),
             openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -244,17 +232,11 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
         manual_parameters=[
             openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-            openapi.Parameter('name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('name_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('schedule_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ)"),
-            openapi.Parameter('schedule_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (UZ Kirill)"),
             openapi.Parameter('schedule_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (RU)"),
-            openapi.Parameter('schedule_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Dars vaqti (EN)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['sport','art','science','language','tech','other']),
             openapi.Parameter('teacher', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('max_students', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
@@ -286,7 +268,7 @@ class CircleDetailView(generics.RetrieveUpdateDestroyAPIView):
         data = {
             'id': obj.id,
             'slug': obj.slug,
-            'name': obj.name_uz or obj.name_ru or obj.name_en or '',
+            'name': obj.name_uz or obj.name_ru or '',
             'detail': "To'garak muvaffaqiyatli o'chirildi.",
         }
         obj.delete()

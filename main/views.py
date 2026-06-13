@@ -20,9 +20,9 @@ from .serializers import (
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
@@ -47,7 +47,7 @@ class StatisticListCreateView(APIView):
         operation_summary="Statistikalar ro'yxati",
         operation_description=(
             "Bosh sahifa uchun barcha statistikalar.\n\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi label"
+            "- `?lang=uz|ru` — faqat o'sha tildagi label"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: StatisticSerializer(many=True)},

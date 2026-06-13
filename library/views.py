@@ -2,7 +2,6 @@ from rest_framework import generics, filters, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -17,13 +16,13 @@ from .serializers import (
     apply_lang_filter,
 )
 
-LANGS = ['uz', 'uz_cyrl', 'ru', 'en']
+LANGS = ['uz', 'ru']
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
@@ -84,7 +83,7 @@ class LibraryResourceListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'file_type', 'is_featured', 'is_active']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'author']
+    search_fields = ['title_uz', 'title_ru', 'author']
     ordering_fields = ['sort_order', 'created_at', 'download_count']
     ordering = ['sort_order', '-created_at']
 
@@ -105,7 +104,7 @@ class LibraryResourceListView(generics.ListCreateAPIView):
             "- `?is_featured=true|false`\n"
             "- `?is_active=true|false`\n"
             "- `?search=...` — nom yoki muallif bo'yicha\n"
-            "- `?lang=uz|ru|en|uz_cyrl`"
+            "- `?lang=uz|ru`"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: LibraryResourceSerializer(many=True)},
@@ -122,13 +121,9 @@ class LibraryResourceListView(generics.ListCreateAPIView):
         operation_description="Faqat admin. `multipart/form-data` orqali yuboriladi.",
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa'], default='darslik'),
@@ -196,13 +191,9 @@ class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
         operation_description="Faqat admin. `multipart/form-data`.",
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa']),
@@ -230,13 +221,9 @@ class LibraryResourceDetailView(generics.RetrieveUpdateAPIView):
         operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar.",
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('author', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Muallif"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
                               enum=['darslik', 'qollanma', 'jurnal', 'amaliy', 'elektron', 'boshqa']),

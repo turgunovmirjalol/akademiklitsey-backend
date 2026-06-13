@@ -21,9 +21,9 @@ from .serializers import (
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
@@ -45,7 +45,7 @@ class DepartmentListView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active']
-    search_fields = ['name_uz', 'name_ru', 'name_en', 'description_uz']
+    search_fields = ['name_uz', 'name_ru', 'description_uz']
     ordering_fields = ['sort_order', 'name_uz', 'created_at']
     ordering = ['sort_order', 'name_uz']
 
@@ -73,7 +73,7 @@ class DepartmentListView(generics.ListCreateAPIView):
             "Barcha kafedralar.\n\n"
             "- `?is_active=true|false` (admin uchun)\n"
             "- `?search=...` — nom bo'yicha qidirish\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: DepartmentSerializer(many=True)},
@@ -166,7 +166,7 @@ class DepartmentDetailView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        name = obj.name_uz or obj.name_ru or obj.name_en or ''
+        name = obj.name_uz or obj.name_ru or ''
         obj.delete()
         return Response(
             {'slug': self.kwargs['slug'], 'name': name, 'detail': "Kafedra muvaffaqiyatli o'chirildi."},
@@ -214,7 +214,7 @@ class TeacherListView(generics.ListCreateAPIView):
             "- `?category=highest|first|second|none`\n"
             "- `?is_active=true|false` (admin uchun)\n"
             "- `?search=...` — ism/lavozim bo'yicha qidirish\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: TeacherSerializer(many=True)},
@@ -239,21 +239,13 @@ class TeacherListView(generics.ListCreateAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="To'liq ismi"),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Lavozimi (UZ)"),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (UZ Kirill)"),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (RU)"),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (EN)"),
             openapi.Parameter('subject_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan (UZ)"),
-            openapi.Parameter('subject_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan (UZ Kirill)"),
             openapi.Parameter('subject_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan (RU)"),
-            openapi.Parameter('subject_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Fan (EN)"),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (UZ)"),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (UZ Kirill)"),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (RU)"),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (EN)"),
             openapi.Parameter('achievements_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Yutuqlar (UZ)"),
-            openapi.Parameter('achievements_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Yutuqlar (UZ Kirill)"),
             openapi.Parameter('achievements_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Yutuqlar (RU)"),
-            openapi.Parameter('achievements_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Yutuqlar (EN)"),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_rank', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Akademik unvon (ixtiyoriy)"),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['highest','first','second','none'], default='none'),
@@ -313,21 +305,13 @@ class TeacherDetailView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('subject_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('subject_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('subject_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('subject_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('achievements_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('achievements_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('achievements_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('achievements_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_rank', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['highest','first','second','none']),
@@ -355,21 +339,13 @@ class TeacherDetailView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('subject_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('subject_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('subject_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('subject_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('achievements_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('achievements_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('achievements_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('achievements_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_rank', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('category', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['highest','first','second','none']),
@@ -481,17 +457,11 @@ class ManagementListView(generics.ListCreateAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="To'liq ismi"),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Lavozimi (UZ)"),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (UZ Kirill)"),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (RU)"),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Lavozimi (EN)"),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (UZ)"),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (UZ Kirill)"),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (RU)"),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tarjimai hol (EN)"),
             openapi.Parameter('reception_hours_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qabul vaqti (UZ)"),
-            openapi.Parameter('reception_hours_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qabul vaqti (UZ Kirill)"),
             openapi.Parameter('reception_hours_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qabul vaqti (RU)"),
-            openapi.Parameter('reception_hours_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qabul vaqti (EN)"),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
@@ -547,17 +517,11 @@ class ManagementDetailView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('reception_hours_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('reception_hours_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('reception_hours_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('reception_hours_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
@@ -582,17 +546,11 @@ class ManagementDetailView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('full_name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('position_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('position_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('bio_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('bio_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('reception_hours_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('reception_hours_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('reception_hours_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('reception_hours_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('academic_degree', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
             openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),

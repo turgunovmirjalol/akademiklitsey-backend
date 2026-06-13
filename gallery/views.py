@@ -31,9 +31,9 @@ from .serializers import (
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
@@ -57,7 +57,7 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
     pagination_class = GalleryPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'event_date']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'description_uz', 'description_ru']
+    search_fields = ['title_uz', 'title_ru', 'description_uz', 'description_ru']
     ordering_fields = ['sort_order', 'created_at', 'event_date', 'photos_count']
     ordering = ['sort_order', '-created_at']
 
@@ -89,7 +89,7 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
             "- `?event_date=YYYY-MM-DD`\n"
             "- `?search=...` — nom/tavsif bo'yicha\n"
             "- `?ordering=sort_order|-created_at|photos_count`\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: GalleryAlbumSerializer(many=True)},
@@ -116,13 +116,9 @@ class GalleryAlbumListView(generics.ListCreateAPIView):
         ),
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
             openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
@@ -197,13 +193,9 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. **`multipart/form-data`** orqali yuboriladi.",
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Album nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
             openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
@@ -225,13 +217,9 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
         operation_description="Faqat admin. Faqat o'zgartirilishi kerak bo'lgan maydonlar. **`multipart/form-data`**.",
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (UZ)"),
-            openapi.Parameter('title_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (UZ Kirill)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (RU)"),
-            openapi.Parameter('title_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Album nomi (EN)"),
             openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-            openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
             openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-            openapi.Parameter('description_en', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
             openapi.Parameter('cover_image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Muqova rasmi"),
             openapi.Parameter('event_date', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tadbir sanasi (YYYY-MM-DD)"),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
@@ -256,7 +244,7 @@ class GalleryAlbumDetailView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        title = obj.title_uz or obj.title_ru or obj.title_en or ''
+        title = obj.title_uz or obj.title_ru or ''
         photos_count = obj.photos_count
         obj.delete()
         return Response(
@@ -299,12 +287,9 @@ class GalleryPhotoUploadView(APIView):
             "- `sort_order` — ixtiyoriy (avtomatik belgilanadi)"
         ),
         manual_parameters=[
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True,
-                              description="Asosiy rasm (JPEG, PNG, WEBP)"),
-            openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False,
-                              description="Preview rasm (ixtiyoriy)"),
-            openapi.Parameter('caption', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False,
-                              description="Rasm izohi"),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Asosiy rasm (JPEG, PNG, WEBP)"),
+            openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Preview rasm (ixtiyoriy)"),
+            openapi.Parameter('caption', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Rasm izohi"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
         ],
         consumes=['multipart/form-data'],
@@ -348,8 +333,7 @@ class GalleryPhotoBulkUploadView(APIView):
             "- `caption` — barcha rasmlarga umumiy izoh (ixtiyoriy)"
         ),
         manual_parameters=[
-            openapi.Parameter('images', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True,
-                              description="Bir nechta rasm fayllari"),
+            openapi.Parameter('images', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Bir nechta rasm fayllari"),
             openapi.Parameter('caption', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
         ],
         consumes=['multipart/form-data'],
@@ -437,7 +421,7 @@ class GalleryPhotoDetailView(APIView):
             try:
                 photo.sort_order = int(request.data['sort_order'])
             except (ValueError, TypeError):
-                return Response({'sort_order': 'Butun son bo\'lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'sort_order': 'Butun son bo'lishi kerak.'}, status=status.HTTP_400_BAD_REQUEST)
         photo.save()
         return Response(GalleryPhotoSerializer(photo, context={'request': request}).data)
 
@@ -450,7 +434,7 @@ class GalleryPhotoDetailView(APIView):
     def delete(self, request, pk):
         photo = self._get_photo(pk)
         album_slug = photo.album.slug
-        photo.delete()  # model.delete() photos_count ni avtomatik yangilaydi
+        photo.delete()  # model.delete() photos_count ni avtomatik yangilanadi
         return Response(
             {'id': pk, 'album_slug': album_slug, 'detail': "Rasm muvaffaqiyatli o'chirildi."},
             status=status.HTTP_200_OK,
@@ -491,11 +475,9 @@ class UsefulLinkListView(generics.ListCreateAPIView):
 
     @swagger_auto_schema(
         operation_summary="Foydali havolalar ro'yxati",
-        operation_description=(
-            "Barcha foydali havolalar.\n\n"
-            "- `?is_active=true|false` (admin uchun)\n"
-            "- `?search=...` — nom bo'yicha qidirish"
-        ),
+        operation_description="Barcha foydali havolalar.\n\n"
+        "- `?is_active=true|false` (admin uchun)\n"
+        "- `?search=...` — nom bo'yicha qidirish",
         responses={200: UsefulLinkSerializer(many=True)},
         tags=["Gallery - Useful Links"],
     )
@@ -587,7 +569,7 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
             openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Havola nomi"),
             openapi.Parameter('url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="URL manzil"),
             openapi.Parameter('logo', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Logo rasmi"),
-            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa tavsif"),
             openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False),
             openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
         ],
@@ -619,17 +601,13 @@ class UsefulLinkDetailView(generics.RetrieveUpdateDestroyAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 INFRA_WRITE_PARAMS = [
-    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
-    openapi.Parameter('title_uz_cyrl',  openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ Kirill)"),
-    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
-    openapi.Parameter('title_en',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (EN)"),
-    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-    openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
-    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-    openapi.Parameter('description_en',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
-    openapi.Parameter('image',      openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Rasm"),
+    openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (UZ)"),
+    openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Nomi (RU)"),
+    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
+    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
+    openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Rasm"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-    openapi.Parameter('is_active',  openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
@@ -640,7 +618,7 @@ class InfrastructureListCreateView(generics.ListCreateAPIView):
     pagination_class = GalleryPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'description_uz', 'description_ru']
+    search_fields = ['title_uz', 'title_ru', 'description_uz', 'description_ru']
     ordering_fields = ['sort_order', 'created_at']
     ordering = ['sort_order', '-created_at']
 
@@ -665,12 +643,12 @@ class InfrastructureListCreateView(generics.ListCreateAPIView):
     @swagger_auto_schema(
         operation_summary="Moddiy-texnik baza ro'yxati",
         operation_description=(
-            "Litseyning moddiy-texnik bazasi elementlari (partalari, kompyuterlari va boshqalar).\n\n"
+            "Litseyning moddiy-texnik bazasi elementlari (partalari, kompyuterlari va boshqalari).\n\n"
             "Filterlar:\n"
             "- `?is_active=true|false` (admin uchun)\n"
             "- `?search=...` — nom/tavsif bo'yicha\n"
             "- `?ordering=sort_order|-created_at`\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: InfrastructureItemSerializer(many=True)},
@@ -780,7 +758,7 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
         obj = self.get_object()
         data = {
             'id': obj.pk,
-            'title': obj.title_uz or obj.title_ru or obj.title_en or '',
+            'title': obj.title_uz or obj.title_ru or '',
             'detail': "Element muvaffaqiyatli o'chirildi.",
         }
         obj.delete()
@@ -792,29 +770,26 @@ class InfrastructureDetailView(generics.RetrieveUpdateDestroyAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 VIDEO_WRITE_PARAMS = [
-    openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
-    openapi.Parameter('title_uz_cyrl',  openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ Kirill)"),
-    openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
-    openapi.Parameter('title_en',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (EN)"),
-    openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-    openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
-    openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-    openapi.Parameter('description_en',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
-    openapi.Parameter('video_file', openapi.IN_FORM, type=openapi.TYPE_FILE,    required=True,  description="Video fayl (mp4, webm, avi va boshqalar)"),
-    openapi.Parameter('thumbnail',  openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Muqova rasmi (ixtiyoriy)"),
+    openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (UZ)"),
+    openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Sarlavha (RU)"),
+    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
+    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
+    openapi.Parameter('video_url', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Video URL"),
+    openapi.Parameter('video_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Video fayl"),
+    openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Thumbnail rasmi"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-    openapi.Parameter('is_active',  openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
+    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
-class VideoListCreateView(generics.ListCreateAPIView):
+class VideoListView(generics.ListCreateAPIView):
     """Video lavhalar ro'yxati va yaratish."""
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = GalleryPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'description_uz', 'description_ru']
+    search_fields = ['title_uz', 'title_ru', 'description_uz', 'description_ru']
     ordering_fields = ['sort_order', 'created_at']
     ordering = ['sort_order', '-created_at']
 
@@ -842,9 +817,9 @@ class VideoListCreateView(generics.ListCreateAPIView):
             "Barcha video lavhalar.\n\n"
             "Filterlar:\n"
             "- `?is_active=true|false` (admin uchun)\n"
-            "- `?search=...` — sarlavha/tavsif bo'yicha\n"
+            "- `?search=...` — nom/tavsif bo'yicha\n"
             "- `?ordering=sort_order|-created_at`\n"
-            "- `?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima"
+            "- `?lang=uz|ru` — faqat o'sha tildagi tarjima"
         ),
         manual_parameters=[LANG_PARAM],
         responses={200: VideoSerializer(many=True)},
@@ -864,7 +839,8 @@ class VideoListCreateView(generics.ListCreateAPIView):
         operation_summary="Yangi video yaratish",
         operation_description=(
             "Faqat admin. **`multipart/form-data`** orqali yuboriladi.\n\n"
-            "Kamida bitta tilda `title_*` va `video_url` majburiy."
+            "Kamida bitta tilda `title_*` to'ldirilishi shart.\n\n"
+            "Video uchun `video_url` yoki `video_file` orqali yuklanishi kerak."
         ),
         manual_parameters=VIDEO_WRITE_PARAMS,
         consumes=['multipart/form-data'],
@@ -954,7 +930,7 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
         obj = self.get_object()
         data = {
             'id': obj.pk,
-            'title': obj.title_uz or obj.title_ru or obj.title_en or '',
+            'title': obj.title_uz or obj.title_ru or '',
             'detail': "Video muvaffaqiyatli o'chirildi.",
         }
         obj.delete()

@@ -17,26 +17,20 @@ from .serializers import (
 
 LANG_PARAM = openapi.Parameter(
     'lang', openapi.IN_QUERY,
-    description="Javob tilini filtrlash: uz | uz_cyrl | ru | en",
+    description="Javob tilini filtrlash: uz | ru",
     type=openapi.TYPE_STRING,
-    enum=['uz', 'uz_cyrl', 'ru', 'en'],
+    enum=['uz', 'ru'],
     required=False,
 )
 
 # Ko'p tillik maydonlar — POST/PUT/PATCH uchun
 MULTILANG_PARAMS = [
     openapi.Parameter('short_name_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa nomi (O'zbek lotin)"),
-    openapi.Parameter('short_name_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa nomi (O'zbek kirill)"),
     openapi.Parameter('short_name_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa nomi (Rus)"),
-    openapi.Parameter('short_name_en',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Qisqa nomi (Ingliz)"),
     openapi.Parameter('full_name_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq nomi (O'zbek lotin)"),
-    openapi.Parameter('full_name_uz_cyrl',  openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq nomi (O'zbek kirill)"),
     openapi.Parameter('full_name_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq nomi (Rus)"),
-    openapi.Parameter('full_name_en',       openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="To'liq nomi (Ingliz)"),
     openapi.Parameter('address_uz',         openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Manzil (O'zbek lotin)"),
-    openapi.Parameter('address_uz_cyrl',    openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Manzil (O'zbek kirill)"),
     openapi.Parameter('address_ru',         openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Manzil (Rus)"),
-    openapi.Parameter('address_en',         openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Manzil (Ingliz)"),
 ]
 
 COMMON_PARAMS = [
@@ -82,7 +76,7 @@ class SiteSettingsAPIView(APIView):
         operation_summary="Sayt sozlamalarini olish",
         operation_description=(
             "Sayt haqida umumiy ma'lumotlar: nomi, manzil, aloqa, logo, ijtimoiy tarmoqlar.\n\n"
-            "`?lang=uz|ru|en|uz_cyrl` — faqat o'sha tildagi tarjima qaytariladi."
+            "`?lang=uz|ru` — faqat o'sha tildagi tarjima qaytariladi."
         ),
         manual_parameters=[LANG_PARAM],
         responses={
@@ -140,13 +134,9 @@ class SiteSettingsAPIView(APIView):
 SLIDER_WRITE_PARAMS = [
     openapi.Parameter('image',          openapi.IN_FORM, type=openapi.TYPE_FILE,    required=False, description="Slider rasmi"),
     openapi.Parameter('title_uz',       openapi.IN_FORM, type=openapi.TYPE_STRING,  required=False, description="Sarlavha (UZ)"),
-    openapi.Parameter('title_uz_cyrl',  openapi.IN_FORM, type=openapi.TYPE_STRING,  required=False, description="Sarlavha (UZ Kirill)"),
     openapi.Parameter('title_ru',       openapi.IN_FORM, type=openapi.TYPE_STRING,  required=False, description="Sarlavha (RU)"),
-    openapi.Parameter('title_en',       openapi.IN_FORM, type=openapi.TYPE_STRING,  required=False, description="Sarlavha (EN)"),
     openapi.Parameter('description_uz',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ)"),
-    openapi.Parameter('description_uz_cyrl', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (UZ Kirill)"),
     openapi.Parameter('description_ru',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (RU)"),
-    openapi.Parameter('description_en',      openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Tavsif (EN)"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Tartib raqami"),
     openapi.Parameter('is_active',  openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, description="Faol holati"),
 ]
