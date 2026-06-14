@@ -698,10 +698,7 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
 DARS_WRITE_PARAMS = [
     openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
     openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
-    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
-    openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Schedule file (PDF, image)"),
-    openapi.Parameter('schedule_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Type: exam | lesson | other"),
+    openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Schedule file (PDF, DOCX, XLSX)"),
     openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
 ]
@@ -712,8 +709,8 @@ class DarsJadvaliListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active', 'schedule_type']
-    search_fields = ['title_uz', 'title_ru', 'description_uz', 'description_ru']
+    filterset_fields = ['is_active']
+    search_fields = ['title_uz', 'title_ru']
     ordering_fields = ['sort_order', 'created_at']
     ordering = ['sort_order', '-created_at']
 
@@ -738,8 +735,7 @@ class DarsJadvaliListCreateView(generics.ListCreateAPIView):
     @swagger_auto_schema(
         operation_summary="Class schedules list",
         operation_description=(
-            "Class schedules (exam schedule, lesson schedule).\n\n"
-            "- `?schedule_type=exam|lesson|other`\n"
+            "Class schedules list.\n\n"
             "- `?is_active=true|false` (for admin)\n"
             "- `?lang=uz|ru`"
         ),
