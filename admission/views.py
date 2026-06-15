@@ -344,7 +344,8 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        name = obj.name_uz or obj.name_ru or ''
+        name = obj.subject_name_uz or obj.subject_name_ru or ''
+        obj.delete()
         return Response(
             {'id': obj.id, 'subject_name': name, 'detail': "Subject deleted successfully."},
             status=status.HTTP_200_OK,
@@ -499,7 +500,8 @@ class AdmissionDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
-        name = obj.name_uz or obj.name_ru or ''
+        name = obj.document_name_uz or obj.document_name_ru or ''
+        obj.delete()
         return Response(
             {'id': obj.id, 'document_name': name, 'detail': "Document deleted successfully."},
             status=status.HTTP_200_OK,
@@ -685,6 +687,7 @@ class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
         q = obj.question_uz or obj.question_ru or ''
+        obj.delete()
         return Response(
             {'id': obj.id, 'question': q[:80], 'detail': "FAQ deleted successfully."},
             status=status.HTTP_200_OK,
@@ -837,6 +840,7 @@ class DarsJadvaliDetailView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
         title = obj.title_uz or obj.title_ru or ''
+        obj.delete()
         return Response(
             {'id': obj.id, 'title': title, 'detail': "Schedule deleted successfully."},
             status=status.HTTP_200_OK,
