@@ -52,36 +52,27 @@ class BaseContentAdmin(admin.ModelAdmin):
 @admin.register(News)
 class NewsAdmin(BaseContentAdmin):
     list_display = [
-        'title_badge', 'status_badge', 'is_featured',
+        'title_badge', 'status_badge',
         'views_badge', 'published_at', 'created_by',
     ]
-    list_filter = ['status', 'is_featured', 'published_at', 'created_at']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'short_description_uz']
-    list_editable = ['is_featured']
+    list_filter = ['status', 'published_at', 'created_at']
+    search_fields = ['title_uz', 'title_ru']
     readonly_fields = ['views_count', 'created_at', 'updated_at', 'slug', 'views_badge', 'status_badge']
 
     fieldsets = (
-        ("O'zbek tili (Lotin)", {
-            'fields': ('title_uz', 'short_description_uz', 'content_uz'),
+        ("O'zbek tili", {
+            'fields': ('title_uz', 'content_uz'),
             'description': "Asosiy til — kamida shu til to'ldirilishi shart.",
         }),
-        ("O'zbek tili (Kirill)", {
-            'fields': ('title_uz_cyrl', 'short_description_uz_cyrl', 'content_uz_cyrl'),
-            'classes': ('collapse',),
-        }),
         ("Rus tili", {
-            'fields': ('title_ru', 'short_description_ru', 'content_ru'),
-            'classes': ('collapse',),
-        }),
-        ("Ingliz tili", {
-            'fields': ('title_en', 'short_description_en', 'content_en'),
+            'fields': ('title_ru', 'content_ru'),
             'classes': ('collapse',),
         }),
         ("Media", {
             'fields': ('image',),
         }),
         ("Nashr sozlamalari", {
-            'fields': ('slug', 'status', 'is_featured', 'published_at'),
+            'fields': ('slug', 'status', 'published_at'),
         }),
         ("Statistika va tizim", {
             'fields': ('views_badge', 'created_by', 'created_at', 'updated_at'),
@@ -113,25 +104,17 @@ class AnnouncementAdmin(BaseContentAdmin):
         'views_badge', 'expires_badge', 'published_at', 'created_by',
     ]
     list_filter = ['status', 'is_important', 'published_at', 'expires_at']
-    search_fields = ['title_uz', 'title_ru', 'title_en', 'short_description_uz']
+    search_fields = ['title_uz', 'title_ru']
     list_editable = ['is_important']
     readonly_fields = ['views_count', 'created_at', 'slug', 'views_badge', 'status_badge', 'expires_badge']
 
     fieldsets = (
-        ("O'zbek tili (Lotin)", {
-            'fields': ('title_uz', 'short_description_uz', 'content_uz'),
+        ("O'zbek tili", {
+            'fields': ('title_uz', 'content_uz'),
             'description': "Asosiy til — kamida shu til to'ldirilishi shart.",
         }),
-        ("O'zbek tili (Kirill)", {
-            'fields': ('title_uz_cyrl', 'short_description_uz_cyrl', 'content_uz_cyrl'),
-            'classes': ('collapse',),
-        }),
         ("Rus tili", {
-            'fields': ('title_ru', 'short_description_ru', 'content_ru'),
-            'classes': ('collapse',),
-        }),
-        ("Ingliz tili", {
-            'fields': ('title_en', 'short_description_en', 'content_en'),
+            'fields': ('title_ru', 'content_ru'),
             'classes': ('collapse',),
         }),
         ("Media", {

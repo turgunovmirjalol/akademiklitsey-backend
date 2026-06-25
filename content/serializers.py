@@ -3,8 +3,8 @@ from .models import News, Announcement
 from core.validators import validate_image
 
 LANGS = ['uz', 'ru']
-NEWS_FIELDS = ['title', 'short_description', 'content']
-ANN_FIELDS = ['title', 'short_description', 'content']
+NEWS_FIELDS = ['title', 'content']
+ANN_FIELDS = ['title', 'content']
 
 
 def build_translations(obj, fields):
@@ -50,7 +50,6 @@ class NewsSerializer(serializers.Serializer):
     views_count = serializers.IntegerField(read_only=True)
     status = serializers.CharField()
     status_display = serializers.SerializerMethodField()
-    is_featured = serializers.BooleanField()
     published_at = serializers.DateTimeField(allow_null=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -84,14 +83,6 @@ class NewsWriteSerializer(serializers.Serializer):
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (Rus)"
     )
-    short_description_uz = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (O'zbek lotin)"
-    )
-    short_description_ru = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (Rus)"
-    )
     content_uz = serializers.CharField(
         required=False, allow_blank=True,
         help_text="To'liq matn (O'zbek lotin)"
@@ -109,10 +100,6 @@ class NewsWriteSerializer(serializers.Serializer):
         choices=News.Status.choices,
         default=News.Status.DRAFT,
         help_text="draft | published | archived"
-    )
-    is_featured = serializers.BooleanField(
-        default=False,
-        help_text="Bosh sahifaga chiqarish"
     )
     published_at = serializers.DateTimeField(
         required=False, allow_null=True,
@@ -196,14 +183,6 @@ class AnnouncementWriteSerializer(serializers.Serializer):
     title_ru = serializers.CharField(
         max_length=300, required=False, allow_blank=True,
         help_text="Sarlavha (Rus)"
-    )
-    short_description_uz = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (O'zbek lotin)"
-    )
-    short_description_ru = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Qisqa tavsif (Rus)"
     )
     content_uz = serializers.CharField(
         required=False, allow_blank=True,

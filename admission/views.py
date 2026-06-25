@@ -199,15 +199,13 @@ class AdmissionHistoryView(generics.ListAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 SUBJECT_WRITE_PARAMS = [
-    openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Subject name (UZ)"),
-    openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Subject name (RU)"),
+    openapi.Parameter('subject_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Subject name (UZ)"),
+    openapi.Parameter('subject_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Subject name (RU)"),
     openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
     openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
+    openapi.Parameter('subject_type', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Subject type"),
     openapi.Parameter('max_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Maximum score"),
-    openapi.Parameter('min_score', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Minimum score"),
-    openapi.Parameter('duration_minutes', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, description="Exam duration (minutes)"),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
@@ -216,23 +214,15 @@ class AdmissionSubjectListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active']
-    search_fields = ['name_uz', 'name_ru', 'description_uz', 'description_ru']
-    ordering_fields = ['sort_order', 'name_uz', 'max_score', 'duration_minutes']
+    filterset_fields = ['subject_type']
+    search_fields = ['subject_name_uz', 'subject_name_ru', 'description_uz', 'description_ru']
+    ordering_fields = ['sort_order', 'subject_name_uz', 'max_score']
     ordering = ['sort_order']
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return AdmissionSubject.objects.none()
-        qs = AdmissionSubject.objects.all()
-        is_admin = (
-            self.request.user.is_authenticated
-            and hasattr(self.request.user, 'is_admin_role')
-            and self.request.user.is_admin_role()
-        )
-        if not is_admin:
-            qs = qs.filter(is_active=True)
-        return qs
+        return AdmissionSubject.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -357,13 +347,13 @@ class AdmissionSubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 DOCUMENT_WRITE_PARAMS = [
-    openapi.Parameter('name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Document name (UZ)"),
-    openapi.Parameter('name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Document name (RU)"),
-    openapi.Parameter('description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (UZ)"),
-    openapi.Parameter('description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Description (RU)"),
-    openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="File"),
+    openapi.Parameter('document_name_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Document name (UZ)"),
+    openapi.Parameter('document_name_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Document name (RU)"),
+    openapi.Parameter('note_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Note (UZ)"),
+    openapi.Parameter('note_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Note (RU)"),
+    openapi.Parameter('document_file', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="File"),
+    openapi.Parameter('is_required', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
     openapi.Parameter('sort_order', openapi.IN_FORM, type=openapi.TYPE_INTEGER, required=False, default=0),
-    openapi.Parameter('is_active', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=True),
 ]
 
 
@@ -372,23 +362,15 @@ class AdmissionDocumentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active']
-    search_fields = ['name_uz', 'name_ru', 'description_uz', 'description_ru']
-    ordering_fields = ['sort_order', 'name_uz']
+    filterset_fields = ['is_required']
+    search_fields = ['document_name_uz', 'document_name_ru', 'note_uz', 'note_ru']
+    ordering_fields = ['sort_order', 'document_name_uz']
     ordering = ['sort_order']
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return AdmissionDocument.objects.none()
-        qs = AdmissionDocument.objects.all()
-        is_admin = (
-            self.request.user.is_authenticated
-            and hasattr(self.request.user, 'is_admin_role')
-            and self.request.user.is_admin_role()
-        )
-        if not is_admin:
-            qs = qs.filter(is_active=True)
-        return qs
+        return AdmissionDocument.objects.all()
 
     def get_serializer_class(self):
         if getattr(self, 'swagger_fake_view', False):

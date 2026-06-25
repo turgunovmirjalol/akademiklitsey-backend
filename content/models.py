@@ -18,9 +18,6 @@ class News(models.Model):
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (RU)")
 
-    short_description_uz = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ)")
-    short_description_ru = models.TextField(blank=True, verbose_name="Qisqa tavsif (RU)")
-
     content_uz = models.TextField(blank=True, verbose_name="Matn (UZ)")
     content_ru = models.TextField(blank=True, verbose_name="Matn (RU)")
 
@@ -29,7 +26,6 @@ class News(models.Model):
     image = models.ImageField(upload_to='news_images/', blank=True, null=True, verbose_name="Asosiy rasm")
     views_count = models.PositiveIntegerField(default=0, verbose_name="Ko'rishlar soni")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, verbose_name="Holat")
-    is_featured = models.BooleanField(default=False, verbose_name="Bosh sahifaga chiqarish")
     published_at = models.DateTimeField(null=True, blank=True, verbose_name="Nashr sanasi")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqt")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan vaqt")
@@ -44,7 +40,7 @@ class News(models.Model):
         verbose_name_plural = "Yangiliklar"
         ordering = ['-published_at', '-created_at']
         indexes = [
-            models.Index(fields=['status', 'is_featured']),
+            models.Index(fields=['status']),
             models.Index(fields=['slug']),
             models.Index(fields=['-published_at']),
         ]
@@ -81,9 +77,6 @@ class Announcement(models.Model):
     # Tarjima maydonlari
     title_uz = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (UZ)")
     title_ru = models.CharField(max_length=300, blank=True, verbose_name="Sarlavha (RU)")
-
-    short_description_uz = models.TextField(blank=True, verbose_name="Qisqa tavsif (UZ)")
-    short_description_ru = models.TextField(blank=True, verbose_name="Qisqa tavsif (RU)")
 
     content_uz = models.TextField(blank=True, verbose_name="Matn (UZ)")
     content_ru = models.TextField(blank=True, verbose_name="Matn (RU)")

@@ -53,11 +53,8 @@ class NewsListCreateAPIView(generics.ListCreateAPIView):
     pagination_class = ContentPagination
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'is_featured']
-    search_fields = [
-        'title_uz', 'title_ru',
-        'short_description_uz', 'short_description_ru',
-    ]
+    filterset_fields = ['status']
+    search_fields = ['title_uz', 'title_ru']
     ordering_fields = ['created_at', 'published_at', 'views_count']
     ordering = ['-published_at', '-created_at']
 
@@ -76,8 +73,7 @@ class NewsListCreateAPIView(generics.ListCreateAPIView):
         operation_description=(
             "All news. Filters:\n"
             "- `?status=draft|published|archived`\n"
-            "- `?is_featured=true|false`\n"
-            "- `?search=...` — search by title/description\n"
+            "- `?search=...` — search by title\n"
             "- `?ordering=published_at|-published_at|views_count`\n"
             "- `?lang=uz|ru` — show only that language translation"
         ),
@@ -104,13 +100,10 @@ class NewsListCreateAPIView(generics.ListCreateAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft','published','archived'], default='draft'),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
             openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
@@ -168,13 +161,10 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived'], default='draft'),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False, default=False),
             openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
@@ -194,13 +184,10 @@ class NewsDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
             openapi.Parameter('status', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, enum=['draft', 'published', 'archived']),
-            openapi.Parameter('is_featured', openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=False),
             openapi.Parameter('published_at', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Publish date (ISO 8601)"),
         ],
         consumes=['multipart/form-data'],
@@ -241,10 +228,7 @@ class AnnouncementListCreateAPIView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'is_important']
-    search_fields = [
-        'title_uz', 'title_ru',
-        'short_description_uz', 'short_description_ru',
-    ]
+    search_fields = ['title_uz', 'title_ru']
     ordering_fields = ['created_at', 'published_at', 'expires_at', 'views_count']
     ordering = ['-published_at', '-created_at']
 
@@ -296,8 +280,6 @@ class AnnouncementListCreateAPIView(generics.ListCreateAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
@@ -362,8 +344,6 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=True, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
@@ -389,8 +369,6 @@ class AnnouncementDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         manual_parameters=[
             openapi.Parameter('title_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (UZ)"),
             openapi.Parameter('title_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Title (RU)"),
-            openapi.Parameter('short_description_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (UZ)"),
-            openapi.Parameter('short_description_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Short description (RU)"),
             openapi.Parameter('content_uz', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (UZ)"),
             openapi.Parameter('content_ru', openapi.IN_FORM, type=openapi.TYPE_STRING, required=False, description="Full content (RU)"),
             openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, required=False, description="Main image"),
